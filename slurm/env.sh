@@ -27,8 +27,14 @@ esac
 
 # vLLM JIT-compiles some kernels (FlashInfer/Triton) at startup and needs a CUDA toolkit
 # (nvcc + headers). Load the cluster's CUDA module; override with AFB_CUDA_MODULE=cuda/<ver>.
+# Module names are versioned (e.g. cuda/12.6.0), so pick the newest one available.
 if command -v module >/dev/null 2>&1; then
-  module load "${AFB_CUDA_MODULE:-cuda}" >/dev/null 2>&1 || echo "env.sh: could not load CUDA module" >&2
+  _afb_cuda=${AFB_CUDA_MODULE:-$(module -t avail 2>&1 | grep -E '^(cuda|cudatoolkit)/[0-9]'                                   | sed 's/(default)//' | sort -t/ -k2 -V | tail -1)}
+  if [[ -n "$_afb_cuda" ]] && module load "$_afb_cuda" >/dev/null 2>&1; then
+    echo "env.sh: loaded $_afb_cuda" >&2
+  else
+    echo "env.sh: could not load a CUDA module (set AFB_CUDA_MODULE)" >&2
+  fi
 fi
 if [[ -z "${CUDA_HOME:-}" ]] && command -v nvcc >/dev/null 2>&1; then
   export CUDA_HOME="$(dirname "$(dirname "$(command -v nvcc)")")"
