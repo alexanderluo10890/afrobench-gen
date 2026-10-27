@@ -14,7 +14,7 @@ export PATH="$HOME/.local/bin:$PATH"
 make_env () {  # $1 venv  $2 requirements.in  $3 lock
   [[ -x "$1/bin/python" ]] || uv venv --python 3.11 "$1"
   if [[ -f "$3" ]]; then
-    VIRTUAL_ENV="$1" uv pip sync "$3"
+    VIRTUAL_ENV="$1" uv pip sync ${AFB_REINSTALL:+--reinstall} "$3"
   else
     VIRTUAL_ENV="$1" uv pip install -r "$2"
     VIRTUAL_ENV="$1" uv pip freeze > "$3"
@@ -29,5 +29,7 @@ VIRTUAL_ENV="$AFB_VENV"       uv pip install --no-deps -e .
 VIRTUAL_ENV="$AFB_VENV_COMET" uv pip install --no-deps -e .
 
 "$AFB_VENV/bin/python" -c "import vllm, lm_eval; print('vllm', vllm.__version__)"
+# catches a partially written triton install (seen once: missing language/extra/hip/libdevice.py)
+"$AFB_VENV/bin/python" -c "import importlib, pathlib, triton; d = pathlib.Path(triton.__file__).parent / 'language' / 'extra'; [importlib.import_module('triton.language.extra.' + p.parent.name + '.libdevice') for p in d.glob('*/libdevice.py')]; assert (d / 'hip' / 'libdevice.py').exists() or not (d / 'hip').exists(), 'triton install incomplete'; print('triton', triton.__version__, 'ok')"
 "$AFB_VENV_COMET/bin/python" -c "import comet; print('comet ok')"
 echo "setup done. next: $AFB_VENV/bin/python -m afbgen.prepare"

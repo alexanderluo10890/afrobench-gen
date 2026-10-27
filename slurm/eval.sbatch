@@ -18,6 +18,11 @@ MAX_RESTARTS=${AFB_MAX_RESTARTS:-6}
 
 echo "== $(date -Is) job=$SLURM_JOB_ID restart=${SLURM_RESTART_COUNT:-0} host=$(hostname) task=$TASK langs=$LANGS"
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
+# Per-job JIT caches on node-local disk: parallel jobs sharing one cache in $HOME can
+# corrupt each other's compiled kernels.
+export TRITON_CACHE_DIR="${SLURM_TMPDIR:-/tmp/$USER-$SLURM_JOB_ID}/triton" TORCHINDUCTOR_CACHE_DIR="${SLURM_TMPDIR:-/tmp/$USER-$SLURM_JOB_ID}/inductor"
+echo "CUDA_HOME=${CUDA_HOME:-unset} nvcc=$(command -v nvcc || echo none)"
+"$AFB_VENV/bin/python" -c "import torch, triton, vllm; print('torch', torch.__version__, 'cuda', torch.version.cuda, '| triton', triton.__version__, '| vllm', vllm.__version__)"
 
 # 10 min before the 3 h limit: requeue ourselves so the job resumes from the on-disk cache.
 requeue () {

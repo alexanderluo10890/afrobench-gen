@@ -25,4 +25,13 @@ case "$AFB_CLUSTER" in
   vulcan) export AFB_SBATCH_ARGS="--account=${AFB_ACCOUNT:-aip-davlan}" ;;
 esac
 
+# vLLM JIT-compiles some kernels (FlashInfer/Triton) at startup and needs a CUDA toolkit
+# (nvcc + headers). Load the cluster's CUDA module; override with AFB_CUDA_MODULE=cuda/<ver>.
+if command -v module >/dev/null 2>&1; then
+  module load "${AFB_CUDA_MODULE:-cuda}" >/dev/null 2>&1 || echo "env.sh: could not load CUDA module" >&2
+fi
+if [[ -z "${CUDA_HOME:-}" ]] && command -v nvcc >/dev/null 2>&1; then
+  export CUDA_HOME="$(dirname "$(dirname "$(command -v nvcc)")")"
+fi
+
 mkdir -p "$AFB_DATA_DIR" "$AFB_RESULTS" "$HF_HOME" "$AFB_ROOT/logs"
