@@ -1,0 +1,46 @@
+# Every external artifact the evaluation depends on, pinned to an exact revision.
+# Changing anything here changes the benchmark: bump INFRA_VERSION in afbgen/__init__.py
+# and note it in CHANGELOG.md.
+
+model:
+  repo: McGill-NLP/AfriqueQwen3.5-4B-Instruct-v2
+  revision: d9c3c6a67ea313f41cc7b242ab732d8b1bbdeab7
+
+comet:
+  repo: McGill-NLP/ssa-comet-mtl
+  revision: 6e64e0a56ce69524c67f304b092725687a362ef8
+  # encoder the COMET checkpoint is built on (downloaded so scoring works offline)
+  encoder_repo: Davlan/afro-xlmr-large-76L
+  encoder_revision: 14a5ee38911f7f9992cf7a1c5fcd1588d9d14319
+
+lm_eval:
+  repo: https://github.com/EleutherAI/lm-evaluation-harness
+  commit: d6de81643928d653435c431bae19945d41d32520
+
+afrobench:
+  # source of the task list / language list (prompt_with_API/afrobench_lite)
+  repo: https://github.com/McGill-NLP/AfroBench
+  commit: 78aaa6e9794cf0a009be7ff451e5e204eb16bdd7
+
+datasets:
+  afrimgsm:
+    repo: masakhane/afrimgsm
+    revision: 8e4268d2b94941f18f63f694cf48e4ae26fbec65
+  afrimmlu:
+    repo: masakhane/afrimmlu
+    revision: 96f247619673906ae4c321a3232afc67b98ea57e
+  afrixnli:
+    repo: masakhane/afrixnli
+    revision: e3ca06b30f3e7af2a86f6c8609ea76fee326bc56
+  belebele:
+    repo: facebook/belebele
+    revision: 7899cdfa4e1e0d733fd77c848e2c273cb1d32be2
+  injongo:
+    repo: masakhane/InjongoIntent
+    revision: fe4be3882a1614161dfe231ec793197bb74f4b44
+  sib:
+    repo: Davlan/sib200
+    revision: 38977a667f6fc264d5c26ec57a01e16db040b358
+  flores:
+    repo: facebook/flores   # gated (auto-approve): accept terms on HF once, then `hf auth login`
+    revision: 71abf77d8b7beb5cfef59898d6b24d92ab7654fc

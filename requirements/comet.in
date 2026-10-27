@@ -1,0 +1,5 @@
+# SSA-COMET scoring env (unbabel-comet pins conflict with vLLM, so it is separate).
+unbabel-comet
+pyyaml
+pandas
+huggingface_hub

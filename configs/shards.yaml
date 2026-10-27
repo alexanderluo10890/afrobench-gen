@@ -1,0 +1,9 @@
+# How each benchmark is split into GPU jobs (one L40S each, <= 3 h).
+# languages_per_job: how many languages (FLORES: directions) one job evaluates.
+afrimgsm: {languages_per_job: 2}   # thinking, up to 10k tokens/answer -> 7 jobs
+afrimmlu: {languages_per_job: 5}   # 3 jobs
+afrixnli: {languages_per_job: 5}   # 3 jobs
+belebele: {languages_per_job: 4}   # 4 jobs
+injongo:  {languages_per_job: 7}   # 2 jobs
+sib:      {languages_per_job: 14}  # 1 job
+flores:   {languages_per_job: 7}   # 28 directions -> 4 jobs

@@ -1,0 +1,10 @@
+# Top-level deps for generation. The exact environment is requirements/eval.lock
+# (created by slurm/setup.sh on first install, then committed and used verbatim).
+lm-eval @ git+https://github.com/EleutherAI/lm-evaluation-harness@d6de81643928d653435c431bae19945d41d32520
+vllm          # must support Qwen3_5ForConditionalGeneration + language_model_only
+sqlitedict
+sacrebleu
+pandas
+pyarrow
+pyyaml
+huggingface_hub

@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "afrobench-gen"
+version = "1.0.0"
+description = "Generative AfroBench-Lite evaluation with the AfriqueQwen3.5 model-card prompts"
+requires-python = ">=3.10"
+
+[tool.setuptools.packages.find]
+include = ["afbgen*"]

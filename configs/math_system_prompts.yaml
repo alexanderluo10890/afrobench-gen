@@ -1,0 +1,19 @@
+# System prompts for AfriMGSM (math). Source: the model card.
+#
+# The card gives the English prompt and a Swahili translation, and says that for other
+# languages the prompt should be translated into the target language. Translations for the
+# other languages are NOT provided by the card, so they fall back to `default_template`
+# (English text, target language substituted) until official translations are added under
+# `overrides`. Adding/changing an override changes the benchmark -> bump INFRA_VERSION.
+
+default_template: |-
+  You are a helpful assistant that solves math word problems.
+  Please reason step by step in {language}, and put your final answer within \boxed{{}}.
+
+overrides:
+  eng: |-
+    You are a helpful assistant that solves math word problems.
+    Please reason step by step in English, and put your final answer within \boxed{}.
+  swa: |-
+    Wewe ni msaidizi mwenye manufaa ambaye hutatua matatizo ya hisabati yaliyoandikwa kwa maneno.
+    Tafadhali toa hoja hatua kwa hatua kwa Kiswahili, na uweke jibu lako la mwisho ndani ya \boxed{}.

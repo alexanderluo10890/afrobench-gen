@@ -1,0 +1,35 @@
+# Decoding settings, copied from the "Recommendation Prompting and Setting" table of
+# https://huggingface.co/McGill-NLP/AfriqueQwen3.5-4B-Instruct-v2 (revision pinned in pins.yaml).
+
+math:            # AfriMGSM
+  enable_thinking: true
+  max_model_len: 12288
+  sampling:
+    temperature: 0.7
+    top_p: 0.8
+    top_k: 20
+    min_p: 0.0
+    presence_penalty: 1.5
+    repetition_penalty: 1.0
+    max_gen_toks: 10240
+    # Per-request seed so sampled outputs do not depend on batching / resume order.
+    # (Not in the card; the card does not specify a seed.)
+    seed: 1234
+
+other:           # AfriMMLU, AfriXNLI, Belebele, Injongo, SIB-200, FLORES
+  enable_thinking: false
+  max_model_len: 8192
+  sampling:
+    temperature: 0.0     # greedy
+    presence_penalty: 0.0
+    repetition_penalty: 1.0
+    max_gen_toks: 1024
+
+engine:
+  dtype: bfloat16
+  language_model_only: true      # card: required, checkpoint has no vision weights
+  gpu_memory_utilization: 0.90
+  seed: 1234
+  # requests per vLLM call; results are committed to the on-disk cache after each chunk,
+  # so this is also the maximum amount of work lost on preemption.
+  chunk_size: 256
