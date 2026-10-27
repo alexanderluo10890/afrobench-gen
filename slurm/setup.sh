@@ -32,4 +32,6 @@ VIRTUAL_ENV="$AFB_VENV_COMET" uv pip install --no-deps -e .
 # catches a partially written triton install (seen once: missing language/extra/hip/libdevice.py)
 "$AFB_VENV/bin/python" -c "import importlib, pathlib, triton; d = pathlib.Path(triton.__file__).parent / 'language' / 'extra'; [importlib.import_module('triton.language.extra.' + p.parent.name + '.libdevice') for p in d.glob('*/libdevice.py')]; assert (d / 'hip' / 'libdevice.py').exists() or not (d / 'hip').exists(), 'triton install incomplete'; print('triton', triton.__version__, 'ok')"
 "$AFB_VENV_COMET/bin/python" -c "import comet; print('comet ok')"
+# Precompile bytecode once so parallel jobs only read (they run with PYTHONDONTWRITEBYTECODE=1).
+"$AFB_VENV/bin/python" -m compileall -q -j 8 "$AFB_VENV/lib" >/dev/null 2>&1 || true
 echo "setup done. next: $AFB_VENV/bin/python -m afbgen.prepare"

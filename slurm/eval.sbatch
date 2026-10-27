@@ -26,6 +26,9 @@ export PATH="$AFB_VENV/bin:$PATH"
 # Sample with vLLM's PyTorch sampler instead of FlashInfer's JIT-compiled kernels:
 # no per-job compilation, same sampling parameters (temperature/top-p/top-k/min-p).
 export VLLM_USE_FLASHINFER_SAMPLER=0
+# Many jobs import the same venv from network storage at once: never write .pyc there
+# (setup.sh precompiles everything once).
+export PYTHONDONTWRITEBYTECODE=1
 echo "CUDA_HOME=${CUDA_HOME:-unset} nvcc=$(command -v nvcc || echo none) ninja=$(command -v ninja || echo none)"
 "$AFB_VENV/bin/python" -c "import torch, triton, vllm; print('torch', torch.__version__, 'cuda', torch.version.cuda, '| triton', triton.__version__, '| vllm', vllm.__version__)"
 
@@ -33,7 +36,7 @@ echo "CUDA_HOME=${CUDA_HOME:-unset} nvcc=$(command -v nvcc || echo none) ninja=$
 requeue () {
   echo "== $(date -Is) USR1: time limit close"
   if (( ${SLURM_RESTART_COUNT:-0} < MAX_RESTARTS )); then
-    scontrol requeue "$SLURM_JOB_ID" && echo "== requeued"
+    scontrol requeue "$SLURM_JOB_ID" && echo "== requeued" && REQUEUED=1
   else
     echo "== restart budget exhausted; resubmit with slurm/submit.py (finished work is kept)"
   fi
@@ -47,4 +50,9 @@ wait "$PID"; RC=$?
 # `wait` returns early when the trap fires; wait again for the python process to exit.
 kill -0 "$PID" 2>/dev/null && { wait "$PID"; RC=$?; }
 echo "== $(date -Is) exit $RC"
+# Crash (e.g. transient network-filesystem error while importing): requeue and resume from
+# the on-disk cache, within the same restart budget as time-limit requeues.
+if (( RC != 0 )) && [[ -z "${REQUEUED:-}" ]] && (( ${SLURM_RESTART_COUNT:-0} < MAX_RESTARTS )); then
+  scontrol requeue "$SLURM_JOB_ID" && echo "== requeued after failure"
+fi
 exit $RC
