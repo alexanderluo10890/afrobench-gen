@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -l
 # One shard = one benchmark x a few languages on one L40S. Submitted by slurm/submit.py:
 #   sbatch $AFB_SBATCH_ARGS slurm/eval.sbatch <run_dir> <task> <langs> [repo_dir]
 #SBATCH --gres=gpu:l40s:1

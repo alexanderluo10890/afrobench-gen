@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -l
 # SSA-COMET scoring of every finished FLORES direction in a run (idempotent).
 #   sbatch $AFB_SBATCH_ARGS slurm/comet.sbatch <run_dir> [repo_dir]
 #SBATCH --gres=gpu:l40s:1
