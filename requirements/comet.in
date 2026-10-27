@@ -3,3 +3,6 @@ unbabel-comet
 pyyaml
 pandas
 huggingface_hub
+# torchmetrics (via unbabel-comet -> pytorch-lightning) imports pkg_resources,
+# which setuptools>=81 no longer ships; uv venvs have no setuptools by default.
+setuptools<81
