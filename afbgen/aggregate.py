@@ -15,13 +15,15 @@ import json
 from pathlib import Path
 from statistics import mean
 
-from afbgen import langs
+from afbgen import INFRA_VERSION, config, langs
+
+COMET = config.load("pins")["comet"]
 
 PRIMARY = {
     "afrimgsm": "acc,boxed_or_last",
     "afrimmlu": "acc,strict", "afrixnli": "acc,strict", "belebele": "acc,strict",
     "injongo": "acc,strict", "sib": "acc,strict",
-    "flores": "ssa_comet",
+    "flores": "ssa_comet_stl",
 }
 CARD_COLUMNS = [("afrimgsm", "AfriMGSM"), ("afrimmlu", "AfriMMLU"), ("afrixnli", "AfriXNLI"),
                 ("belebele", "Belebele"), ("injongo", "Injongo"), ("sib", "SIB-200"), ("flores", "FLORES")]
@@ -48,15 +50,16 @@ def collect(run_dir: Path):
             # accuracies -> percent, like the card
             metrics = {k: (100 * v if k.startswith("acc") else v) for k, v in metrics.items()}
             if task == "flores":
-                cp = unit / "comet.json"
-                if cp.exists():
-                    metrics["ssa_comet"] = json.loads(cp.read_text())["ssa_comet"]
-                else:
-                    missing.append(f"flores/{lang} (SSA-COMET)")
+                for variant, v in COMET["variants"].items():
+                    cp = unit / v["output"]
+                    if cp.exists():
+                        metrics[f"ssa_comet_{variant}"] = json.loads(cp.read_text())["ssa_comet"]
+                    elif variant == COMET["primary"]:
+                        missing.append(f"flores/{lang} (SSA-COMET-{variant.upper()})")
             for k, v in metrics.items():
                 rows.append({"task": task, "lang": lang, "metric": k, "value": round(v, 2), "n": r["n"],
                              "primary": k == PRIMARY[task], "infra_version": r["infra_version"],
-                             "commit": r["git"]["commit"][:10]})
+                             "scoring_version": INFRA_VERSION, "commit": r["git"]["commit"][:10]})
     return rows, missing, versions
 
 
@@ -107,7 +110,8 @@ def main():
                             for v, n, e in summary.values()) + " |")
     if missing:
         print(f"\nmissing ({len(missing)}):", ", ".join(missing))
-    print(f"\nwrote scores_long.csv, scores_wide.csv, summary.csv to {a.run_dir}")
+    print(f"\nscoring: afrobench-gen {INFRA_VERSION} (FLORES = SSA-COMET-{COMET['primary'].upper()})")
+    print(f"wrote scores_long.csv, scores_wide.csv, summary.csv to {a.run_dir}")
 
 
 if __name__ == "__main__":

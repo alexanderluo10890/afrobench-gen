@@ -1,8 +1,9 @@
-"""Score finished FLORES directions with SSA-COMET-MTL (reference-based), per direction.
+"""Score finished FLORES directions with SSA-COMET (reference-based), per direction.
 
     python -m afbgen.comet_score --run-dir $AFB_RESULTS/<run>
 
-Writes <run>/flores/<dir>/comet.json (atomically) and skips directions that already have
+Default variant: STL (reported) -> comet_stl.json; `--variant mtl` -> comet.json.
+Writes the file atomically and skips directions that already have
 one, so it is safe to rerun or requeue.
 """
 
@@ -32,14 +33,14 @@ def main():
     ap.add_argument("--run-dir", required=True, type=Path)
     ap.add_argument("--batch-size", type=int, default=64)
     ap.add_argument("--allow-any-gpu", action="store_true")
-    ap.add_argument("--variant", choices=["mtl", "stl"], default="mtl",
-                    help="mtl = reported metric (comet.json); stl = diagnostic (comet_stl.json)")
+    ap.add_argument("--variant", choices=["stl", "mtl"], default=None,
+                    help="default: the reported metric (configs/pins.yaml comet.primary)")
     a = ap.parse_args()
     check_gpu(a.allow_any_gpu)
-    pins = config.load("pins")["comet"]
-    if a.variant != "mtl":
-        pins = pins["variants"][a.variant]
-    out_name = "comet.json" if a.variant == "mtl" else f"comet_{a.variant}.json"
+    comet_cfg = config.load("pins")["comet"]
+    a.variant = a.variant or comet_cfg["primary"]
+    pins = comet_cfg["variants"][a.variant]
+    out_name = pins["output"]
     ckpt = Path(os.environ["AFB_DATA_DIR"]) / "models" / f"ssa-comet-{a.variant}"
     if (ckpt / ".afb_revision").read_text().strip() != pins["revision"]:
         raise SystemExit("SSA-COMET checkpoint is not the pinned revision; rerun prepare")
@@ -69,7 +70,7 @@ def main():
     ex = [sc[f"eng-{l}"] for l in langs.AFRICAN if f"eng-{l}" in sc]
     if xe and ex:
         print(f"SSA-COMET-{a.variant.upper()} (13 African): xx->eng {mean(xe):.1f}  eng->xx {mean(ex):.1f}  "
-              f"both {mean(xe + ex):.1f}  (card: 62.3)")
+              f"both {mean(xe + ex):.1f}  (card: 62.3)", flush=True)
 
 
 if __name__ == "__main__":

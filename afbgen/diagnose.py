@@ -56,7 +56,7 @@ def report(run_dir: Path):
         elif task == "afrimgsm":
             print("lang   acc  no-number  no-boxed  long-output  median-chars")
         else:
-            print("dir      comet  chrF++  multiline  prefixed  empty  len-ratio")
+            print("dir        stl    mtl  chrF++  multiline  prefixed  empty  len-ratio")
         for lang in langs.TASK_LANGS[task]:
             unit = run_dir / task / lang
             if not (unit / "samples.jsonl").exists():
@@ -78,12 +78,13 @@ def report(run_dir: Path):
                       f"{pct(sum('boxed{' not in s['raw'] for s in S), n)}     "
                       f"{pct(sum(x > LONG_CHARS for x in L), n)}       {median(L):8.0f}")
             else:
-                comet = json.loads((unit / "comet.json").read_text())["ssa_comet"] if (unit / "comet.json").exists() else float("nan")
+                cm = {v: (json.loads((unit / f).read_text())["ssa_comet"] if (unit / f).exists() else float("nan"))
+                      for v, f in (("stl", "comet_stl.json"), ("mtl", "comet.json"))}
                 res = json.loads((unit / "results.json").read_text())["metrics"]
                 chrf = next((v for k, v in res.items() if k.startswith("chrfpp")), float("nan"))
                 tgt = S[0]["doc"]["tgt_name"]
                 ratio = mean(len(s["pred"]) / max(1, len(s["target"])) for s in S)
-                print(f"{lang:8s}{comet:6.1f}  {chrf:6.1f}  "
+                print(f"{lang:8s}{cm['stl']:6.1f} {cm['mtl']:6.1f}  {chrf:6.1f}  "
                       f"{pct(sum(len([l for l in s['raw'].splitlines() if l.strip()]) > 1 for s in S), n)}     "
                       f"{pct(sum(s['raw'].strip().lower().startswith(tgt.lower() + ':') for s in S), n)}   "
                       f"{pct(sum(not s['pred'] for s in S), n)}   {ratio:5.2f}")

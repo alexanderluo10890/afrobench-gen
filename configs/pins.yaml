@@ -7,16 +7,21 @@ model:
   revision: d9c3c6a67ea313f41cc7b242ab732d8b1bbdeab7
 
 comet:
-  repo: McGill-NLP/ssa-comet-mtl
-  revision: 6e64e0a56ce69524c67f304b092725687a362ef8
-  # encoder the COMET checkpoint is built on (downloaded so scoring works offline)
-  encoder_repo: Davlan/afro-xlmr-large-76L
-  encoder_revision: 14a5ee38911f7f9992cf7a1c5fcd1588d9d14319
-  # Diagnostic alternative (same encoder). Not the reported metric; see `comet_score --variant`.
+  # Reported FLORES metric since 1.1.0: SSA-COMET-STL (reproduces the card: 61.4 vs 62.3).
+  # 1.0.0 reported SSA-COMET-MTL (56.8); it is still computed as a secondary column.
+  primary: stl
   variants:
     stl:
       repo: McGill-NLP/ssa-comet-stl
       revision: cd62867ed8fe47527060e6e36662f786d6b74cf7
+      output: comet_stl.json
+    mtl:
+      repo: McGill-NLP/ssa-comet-mtl
+      revision: 6e64e0a56ce69524c67f304b092725687a362ef8
+      output: comet.json   # file name kept from 1.0.0
+  # encoder both checkpoints are built on (downloaded so scoring works offline)
+  encoder_repo: Davlan/afro-xlmr-large-76L
+  encoder_revision: 14a5ee38911f7f9992cf7a1c5fcd1588d9d14319
 
 lm_eval:
   repo: https://github.com/EleutherAI/lm-evaluation-harness

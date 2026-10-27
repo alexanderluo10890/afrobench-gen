@@ -2,4 +2,4 @@
 
 # Bump whenever anything that can change a score changes (prompts, extraction, pins,
 # decoding settings). Results record this version; aggregate.py refuses to mix versions.
-INFRA_VERSION = "1.0.0"
+INFRA_VERSION = "1.1.0"

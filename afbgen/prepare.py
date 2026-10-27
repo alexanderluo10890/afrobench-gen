@@ -62,7 +62,8 @@ def prepare_model(pins):
 
 def prepare_comet(pins):
     c = pins["comet"]
-    _snapshot(c["repo"], c["revision"], data_root() / "models" / "ssa-comet-mtl")
+    for name, v in c["variants"].items():
+        _snapshot(v["repo"], v["revision"], data_root() / "models" / f"ssa-comet-{name}")
     # COMET rebuilds its encoder from the hub id in hparams.yaml (at "main"), so put the
     # pinned encoder in the HF cache and point refs/main at it for offline use.
     path = snapshot_download(repo_id=c["encoder_repo"], revision=c["encoder_revision"])
@@ -70,11 +71,6 @@ def prepare_comet(pins):
     refs.mkdir(exist_ok=True)
     (refs / "main").write_text(c["encoder_revision"])
     print(f"[ok  ] encoder {c['encoder_repo']}@{c['encoder_revision'][:10]} in HF cache")
-
-
-def prepare_comet_stl(pins):
-    v = pins["comet"]["variants"]["stl"]
-    _snapshot(v["repo"], v["revision"], data_root() / "models" / "ssa-comet-stl")
 
 
 def model_dir(pins) -> Path:
@@ -95,13 +91,10 @@ def verify(pins):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--only", choices=["data", "model", "comet", "comet-stl", "verify"])
+    ap.add_argument("--only", choices=["data", "model", "comet", "verify"])
     a = ap.parse_args()
     pins = config.load("pins")
     steps = {"data": prepare_data, "model": prepare_model, "comet": prepare_comet, "verify": verify}
-    if a.only == "comet-stl":
-        prepare_comet_stl(pins)
-        return
     for name, fn in steps.items():
         if a.only in (None, name):
             fn(pins)

@@ -33,3 +33,12 @@ def test_math_prompts_from_card():
     assert config.math_system_prompt("eng").endswith(r"put your final answer within \boxed{}.")
     assert config.math_system_prompt("swa").startswith("Wewe ni msaidizi")
     assert "step by step in Hausa" in config.math_system_prompt("hau")
+
+
+def test_reported_flores_metric_is_stl():
+    c = config.load("pins")["comet"]
+    assert c["primary"] == "stl"
+    assert c["variants"]["stl"] == {"repo": "McGill-NLP/ssa-comet-stl",
+                                    "revision": "cd62867ed8fe47527060e6e36662f786d6b74cf7",
+                                    "output": "comet_stl.json"}
+    assert c["variants"]["mtl"]["output"] == "comet.json"

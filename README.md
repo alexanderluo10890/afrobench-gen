@@ -18,7 +18,7 @@ This matches how the card reports its numbers.
 | Belebele | log-likelihood | Card MC template (A–D), passage plus question | Exact match on the letter |
 | SIB-200 | log-likelihood | Card MC template (A–G) | Exact match on the letter |
 | Injongo | log-likelihood | Label output, 40 intents | Exact match on the label |
-| FLORES | generative | Card translation template | **SSA-COMET-MTL** (×100), plus chrF++ and BLEU |
+| FLORES | generative | Card translation template | **SSA-COMET-STL** (×100); SSA-COMET-MTL, chrF++ and BLEU also stored |
 
 Languages: the AfroBench-Lite set, which is English plus amh, hau, ibo, kin, lin, lug, orm,
 sna, sot, swa, xho, yor and zul. FLORES runs both directions between English and the 13
@@ -91,7 +91,8 @@ $AFB_RESULTS/<run>/
   <task>/<lang>/results.json     # metrics, n, GPU, host, job id, commit, package versions
   <task>/<lang>/samples.jsonl    # prompt, raw response, extracted answer, target per doc
   <task>/<lang>/cache_rank0.db   # generation cache (used for resume)
-  flores/<dir>/comet.json        # SSA-COMET system and segment scores
+  flores/<dir>/comet_stl.json    # SSA-COMET-STL system + segment scores (reported FLORES metric)
+  flores/<dir>/comet.json        # SSA-COMET-MTL (secondary; the reported metric in 1.0.0)
   summary.csv  scores_wide.csv  scores_long.csv
 ```
 
@@ -122,8 +123,10 @@ $AFB_RESULTS/<run>/
    sampled at temperature 0.7 with a fixed per-request seed (1234), so the result does not
    depend on batching or resume order. The card does not mention a seed.
 8. **FLORES.** The output is trimmed to the first non-empty line, with an echoed
-   `"<Language>:"` prefix removed. SSA-COMET is the reference-based `ssa-comet-mtl`
-   checkpoint, and its 0–1 scores are multiplied by 100.
+   `"<Language>:"` prefix removed. The card says only "SSA-COMET". Since 1.1.0 the reported
+   score is the reference-based `ssa-comet-stl` checkpoint (×100): on the v1.0.0 outputs it
+   gives 61.4 vs the card's 62.3, while `ssa-comet-mtl` gives 56.8 with no other difference.
+   MTL is still computed and stored as a secondary column.
 9. **Language set and averages.** AfroBench-Lite languages; averages exclude English and
    French (see above).
 
