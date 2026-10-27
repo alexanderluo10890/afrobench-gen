@@ -26,15 +26,25 @@ case "$AFB_CLUSTER" in
 esac
 
 # vLLM JIT-compiles some kernels (FlashInfer/Triton) at startup and needs a CUDA toolkit
-# (nvcc + headers). Load the cluster's CUDA module; override with AFB_CUDA_MODULE=cuda/<ver>.
-# Module names are versioned (e.g. cuda/12.6.0), so pick the newest one available.
+# (nvcc + headers) matching the CUDA major version PyTorch was built with.
+# Override with AFB_CUDA_MODULE=<module name>.
+if [[ -z "${AFB_CUDA_MODULE:-}" ]]; then
+  _afb_tc=$("$AFB_VENV/bin/python" -c "import torch; print(torch.version.cuda or '')" 2>/dev/null)
+  case "$AFB_CLUSTER:${_afb_tc%%.*}" in
+    mila:13)   AFB_CUDA_MODULE=cuda/13.1.0 ;;
+    mila:*)    AFB_CUDA_MODULE=cuda/12.6.0 ;;
+    vulcan:13) AFB_CUDA_MODULE=cuda/13 ;;
+    vulcan:*)  AFB_CUDA_MODULE=cuda/12 ;;
+  esac
+fi
 if command -v module >/dev/null 2>&1; then
-  _afb_cuda=${AFB_CUDA_MODULE:-$(module -t avail 2>&1 | grep -E '^(cuda|cudatoolkit)/[0-9]'                                   | sed 's/(default)//' | sort -t/ -k2 -V | tail -1)}
-  if [[ -n "$_afb_cuda" ]] && module load "$_afb_cuda" >/dev/null 2>&1; then
-    echo "env.sh: loaded $_afb_cuda" >&2
+  if module load "$AFB_CUDA_MODULE" 2>/tmp/afb-module-$USER.err; then
+    echo "env.sh: loaded $AFB_CUDA_MODULE (torch cuda ${_afb_tc:-?})" >&2
   else
-    echo "env.sh: could not load a CUDA module (set AFB_CUDA_MODULE)" >&2
+    echo "env.sh: could not load $AFB_CUDA_MODULE:" >&2; tail -3 /tmp/afb-module-$USER.err >&2
   fi
+else
+  echo "env.sh: no 'module' command in this shell" >&2
 fi
 if [[ -z "${CUDA_HOME:-}" ]] && command -v nvcc >/dev/null 2>&1; then
   export CUDA_HOME="$(dirname "$(dirname "$(command -v nvcc)")")"
