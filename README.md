@@ -42,6 +42,9 @@ and a git tag. That covers prompts, extraction, pins and settings.
 
 ## Running
 
+One command on a login node does setup, downloads and submission: `bash slurm/bootstrap.sh v1.0.0`.
+Step by step:
+
 ```bash
 # once per cluster, on a login node
 git clone <this repo> && cd afrobench-gen

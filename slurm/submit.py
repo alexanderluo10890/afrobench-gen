@@ -57,7 +57,7 @@ def main():
         cfg_override = 99  # one job per benchmark is plenty for a smoke test
     else:
         cfg_override = None
-    logs = Path(os.environ["AFB_ROOT"]) / "logs" / a.run
+    logs = Path(os.environ["AFB_ROOT"]) / "logs" / run_dir.name
     logs.mkdir(parents=True, exist_ok=True)
     cluster_args = os.environ["AFB_SBATCH_ARGS"].split()
     cfg = yaml.safe_load((REPO / "configs" / "shards.yaml").read_text())
