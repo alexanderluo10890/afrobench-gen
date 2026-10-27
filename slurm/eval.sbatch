@@ -21,7 +21,12 @@ nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
 # Per-job JIT caches on node-local disk: parallel jobs sharing one cache in $HOME can
 # corrupt each other's compiled kernels.
 export TRITON_CACHE_DIR="${SLURM_TMPDIR:-/tmp/$USER-$SLURM_JOB_ID}/triton" TORCHINDUCTOR_CACHE_DIR="${SLURM_TMPDIR:-/tmp/$USER-$SLURM_JOB_ID}/inductor"
-echo "CUDA_HOME=${CUDA_HOME:-unset} nvcc=$(command -v nvcc || echo none)"
+# Tools installed in the venv (ninja for JIT builds) must be on PATH inside the job.
+export PATH="$AFB_VENV/bin:$PATH"
+# Sample with vLLM's PyTorch sampler instead of FlashInfer's JIT-compiled kernels:
+# no per-job compilation, same sampling parameters (temperature/top-p/top-k/min-p).
+export VLLM_USE_FLASHINFER_SAMPLER=0
+echo "CUDA_HOME=${CUDA_HOME:-unset} nvcc=$(command -v nvcc || echo none) ninja=$(command -v ninja || echo none)"
 "$AFB_VENV/bin/python" -c "import torch, triton, vllm; print('torch', torch.__version__, 'cuda', torch.version.cuda, '| triton', triton.__version__, '| vllm', vllm.__version__)"
 
 # 10 min before the 3 h limit: requeue ourselves so the job resumes from the on-disk cache.
