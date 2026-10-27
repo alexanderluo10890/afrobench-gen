@@ -32,10 +32,15 @@ def main():
     ap.add_argument("--run-dir", required=True, type=Path)
     ap.add_argument("--batch-size", type=int, default=64)
     ap.add_argument("--allow-any-gpu", action="store_true")
+    ap.add_argument("--variant", choices=["mtl", "stl"], default="mtl",
+                    help="mtl = reported metric (comet.json); stl = diagnostic (comet_stl.json)")
     a = ap.parse_args()
     check_gpu(a.allow_any_gpu)
     pins = config.load("pins")["comet"]
-    ckpt = Path(os.environ["AFB_DATA_DIR"]) / "models" / "ssa-comet-mtl"
+    if a.variant != "mtl":
+        pins = pins["variants"][a.variant]
+    out_name = "comet.json" if a.variant == "mtl" else f"comet_{a.variant}.json"
+    ckpt = Path(os.environ["AFB_DATA_DIR"]) / "models" / f"ssa-comet-{a.variant}"
     if (ckpt / ".afb_revision").read_text().strip() != pins["revision"]:
         raise SystemExit("SSA-COMET checkpoint is not the pinned revision; rerun prepare")
 
@@ -44,7 +49,7 @@ def main():
     model = None
     units = sorted(p.parent for p in (a.run_dir / "flores").glob("*/results.json"))
     for unit in units:
-        if (unit / "comet.json").exists():
+        if (unit / out_name).exists():
             continue
         if model is None:
             model = load_from_checkpoint(str(ckpt / "checkpoints" / "model.ckpt"))
@@ -54,9 +59,17 @@ def main():
         res = {"ssa_comet": 100 * float(pred.system_score), "n": len(data),
                "model": pins["repo"], "revision": pins["revision"],
                "segment_scores": [float(x) for x in pred.scores]}
-        _atomic_write(unit / "comet.json", json.dumps(res))
+        _atomic_write(unit / out_name, json.dumps(res))
         print(f"[ok  ] {unit.name} ssa_comet={res['ssa_comet']:.2f}", flush=True)
     print(f"{len(units)} finished FLORES directions in {a.run_dir}")
+    from statistics import mean
+    from afbgen import langs
+    sc = {u.name: json.loads((u / out_name).read_text())["ssa_comet"] for u in units if (u / out_name).exists()}
+    xe = [sc[f"{l}-eng"] for l in langs.AFRICAN if f"{l}-eng" in sc]
+    ex = [sc[f"eng-{l}"] for l in langs.AFRICAN if f"eng-{l}" in sc]
+    if xe and ex:
+        print(f"SSA-COMET-{a.variant.upper()} (13 African): xx->eng {mean(xe):.1f}  eng->xx {mean(ex):.1f}  "
+              f"both {mean(xe + ex):.1f}  (card: 62.3)")
 
 
 if __name__ == "__main__":

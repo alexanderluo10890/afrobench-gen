@@ -2,6 +2,12 @@
 
 Every change that can move a score bumps `INFRA_VERSION` (afbgen/__init__.py) and gets a tag.
 
+## Unreleased — diagnostics only (no change to generation or reported scores)
+- `python -m afbgen.diagnose`: per-language answer distributions, unparsed answers,
+  truncated math reasoning, FLORES output formatting; `--examples` prints wrong answers.
+- `comet_score --variant stl`: rescore saved FLORES outputs with SSA-COMET-STL into
+  `comet_stl.json` (reported metric stays SSA-COMET-MTL in `comet.json`).
+
 ## 1.0.0 — 2026-10-26
 - Initial frozen version: AfroBench-Lite (7 benchmarks, 14 languages + FLORES 28 directions)
   as generative tasks with the AfriqueQwen3.5-4B-Instruct-v2 card prompts and settings.

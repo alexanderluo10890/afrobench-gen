@@ -12,6 +12,11 @@ comet:
   # encoder the COMET checkpoint is built on (downloaded so scoring works offline)
   encoder_repo: Davlan/afro-xlmr-large-76L
   encoder_revision: 14a5ee38911f7f9992cf7a1c5fcd1588d9d14319
+  # Diagnostic alternative (same encoder). Not the reported metric; see `comet_score --variant`.
+  variants:
+    stl:
+      repo: McGill-NLP/ssa-comet-stl
+      revision: cd62867ed8fe47527060e6e36662f786d6b74cf7
 
 lm_eval:
   repo: https://github.com/EleutherAI/lm-evaluation-harness

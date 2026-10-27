@@ -72,6 +72,11 @@ def prepare_comet(pins):
     print(f"[ok  ] encoder {c['encoder_repo']}@{c['encoder_revision'][:10]} in HF cache")
 
 
+def prepare_comet_stl(pins):
+    v = pins["comet"]["variants"]["stl"]
+    _snapshot(v["repo"], v["revision"], data_root() / "models" / "ssa-comet-stl")
+
+
 def model_dir(pins) -> Path:
     return data_root() / "models" / pins["model"]["repo"].split("/")[-1]
 
@@ -90,10 +95,13 @@ def verify(pins):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--only", choices=["data", "model", "comet", "verify"])
+    ap.add_argument("--only", choices=["data", "model", "comet", "comet-stl", "verify"])
     a = ap.parse_args()
     pins = config.load("pins")
     steps = {"data": prepare_data, "model": prepare_model, "comet": prepare_comet, "verify": verify}
+    if a.only == "comet-stl":
+        prepare_comet_stl(pins)
+        return
     for name, fn in steps.items():
         if a.only in (None, name):
             fn(pins)
