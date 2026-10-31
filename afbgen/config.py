@@ -10,10 +10,8 @@ def load(name: str) -> dict:
     return yaml.safe_load((ROOT / "configs" / f"{name}.yaml").read_text(encoding="utf-8"))
 
 
-def math_system_prompt(lang: str) -> str:
+def math_instruction(lang: str) -> str:
+    """AfriMGSM instruction for a dataset language code (note, Appendix C)."""
     from afbgen import langs
 
-    cfg = load("math_system_prompts")
-    if lang in cfg["overrides"]:
-        return cfg["overrides"][lang]
-    return cfg["default_template"].format(language=langs.name(lang))
+    return load("math_instructions")[langs.TO_FLORES[lang]]

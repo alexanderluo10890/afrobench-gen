@@ -18,17 +18,16 @@ from huggingface_hub import snapshot_download
 
 from afbgen import config, langs
 
-FLORES_CODES = sorted({langs.flores_code(l) for l in langs.LANGS})
-MASAKHANE = sorted(set(langs.TASK_LANGS["afrimgsm"]))
+_FLORES_FILES = sorted({langs.FLORES_PLUS_FILE[c] for c in langs.FLORES_LANGS + ["eng_Latn"]})
 
 PATTERNS = {
-    "afrimgsm": [f"data/{l}/test.tsv" for l in MASAKHANE],
-    "afrimmlu": [f"data/{l}/test.tsv" for l in MASAKHANE],
-    "afrixnli": [f"data/{l}/test.tsv" for l in MASAKHANE],
-    "injongo": [f"{l}/test.jsonl" for l in MASAKHANE],
-    "belebele": [f"data/{c}.jsonl" for c in FLORES_CODES],
-    "sib": [f"data/{c}/test.tsv" for c in FLORES_CODES],
-    "flores": [f"data/language/{c}/devtest-*.parquet" for c in FLORES_CODES],
+    "afrimgsm": [f"data/{l}/test.tsv" for l in langs.TASK_LANGS["afrimgsm"]],
+    "afrimmlu": [f"data/{l}/test.tsv" for l in langs.TASK_LANGS["afrimmlu"]],
+    "afrixnli": [f"data/{l}/test.tsv" for l in langs.TASK_LANGS["afrixnli"]],
+    "injongo": [f"{l}/test.jsonl" for l in langs.TASK_LANGS["injongo"]],
+    "belebele": [f"data/{c}.jsonl" for c in langs.TASK_LANGS["belebele"]],
+    "sib": [f"data/{c}/test.tsv" for c in langs.TASK_LANGS["sib"]],
+    "flores": [f"devtest/{f}.jsonl" for f in _FLORES_FILES],
 }
 
 
@@ -40,14 +39,19 @@ def data_root() -> Path:
 
 
 def _snapshot(repo, revision, local_dir, repo_type="model", patterns=None):
+    # The marker records the revision AND the requested files, so adding languages
+    # downloads the new files (snapshot_download only fetches what is missing).
+    import hashlib
+
+    key = revision if patterns is None else f"{revision} {hashlib.sha1(json.dumps(sorted(patterns)).encode()).hexdigest()[:12]}"
     marker = Path(local_dir) / ".afb_revision"
-    if marker.exists() and marker.read_text().strip() == revision:
+    if marker.exists() and marker.read_text().strip() == key:
         print(f"[skip] {repo}@{revision[:10]} already in {local_dir}")
         return
     print(f"[get ] {repo}@{revision[:10]} -> {local_dir}")
     snapshot_download(repo_id=repo, revision=revision, repo_type=repo_type,
                       local_dir=local_dir, allow_patterns=patterns)
-    marker.write_text(revision)
+    marker.write_text(key)
 
 
 def prepare_data(pins):

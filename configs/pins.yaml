@@ -7,19 +7,23 @@ model:
   revision: d9c3c6a67ea313f41cc7b242ab732d8b1bbdeab7
 
 comet:
-  # Reported FLORES metric since 1.1.0: SSA-COMET-STL (reproduces the card: 61.4 vs 62.3).
-  # 1.0.0 reported SSA-COMET-MTL (56.8); it is still computed as a secondary column.
-  primary: stl
+  # Reported FLORES metric (card authors' note, 4.4): SSA-COMET with ssa-comet-mtl-final.
+  # 1.1.0 wrongly reported ssa-comet-stl; mtl/stl stay available as diagnostics only.
+  primary: mtl-final
   variants:
+    mtl-final:
+      repo: McGill-NLP/ssa-comet-mtl-final
+      revision: 4df7a3d2eda822a3c5b79e7a345261d5166207ce
+      output: comet_mtl_final.json
+    mtl:
+      repo: McGill-NLP/ssa-comet-mtl
+      revision: 6e64e0a56ce69524c67f304b092725687a362ef8
+      output: comet.json
     stl:
       repo: McGill-NLP/ssa-comet-stl
       revision: cd62867ed8fe47527060e6e36662f786d6b74cf7
       output: comet_stl.json
-    mtl:
-      repo: McGill-NLP/ssa-comet-mtl
-      revision: 6e64e0a56ce69524c67f304b092725687a362ef8
-      output: comet.json   # file name kept from 1.0.0
-  # encoder both checkpoints are built on (downloaded so scoring works offline)
+  # encoder all three checkpoints are built on (downloaded so scoring works offline)
   encoder_repo: Davlan/afro-xlmr-large-76L
   encoder_revision: 14a5ee38911f7f9992cf7a1c5fcd1588d9d14319
 
@@ -52,5 +56,6 @@ datasets:
     repo: Davlan/sib200
     revision: 38977a667f6fc264d5c26ec57a01e16db040b358
   flores:
-    repo: facebook/flores   # gated (auto-approve): accept terms on HF once, then `hf auth login`
-    revision: 71abf77d8b7beb5cfef59898d6b24d92ab7654fc
+    # FLORES+ (card authors' note, 4.4). Gated: accept the terms on HF once, then `hf auth login`.
+    repo: openlanguagedata/flores_plus
+    revision: 5fec6c13f9e5a4db2f745d4ec0d7c9721ddc4f06

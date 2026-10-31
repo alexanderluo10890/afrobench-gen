@@ -2,7 +2,32 @@
 
 Every change that can move a score bumps `INFRA_VERSION` (afbgen/__init__.py) and gets a tag.
 
-## 1.1.0 — 2026-10-27 — FLORES metric: SSA-COMET-STL
+## 2.0.0 — 2026-10-31 — settings of the card run
+Every setting now follows the card authors' note "How to match the
+AfriqueQwen3.5-4B-Instruct-v2 card numbers" (2026-10-29). The note showed that our 1.x numbers
+only looked close to the card because two errors cancelled out: our 13-language averages vs
+the card's 17-26 languages per task, and lower scores on 5 tasks from different settings.
+- **Languages:** the card lists (17-26 per task, English/French where listed; FLORES 24
+  languages x 2 directions); averages over all languages of each list.
+- **AfriMGSM:** one user message (translated instruction + blank line + question), no system
+  message; 16 samples per question (vLLM n=16, seed 42); answer from the full output,
+  thinking included (Unicode minus, digit spaces, last box, box without number = wrong).
+  New runner `afbgen/math_runner.py` (lm-eval cannot draw n samples per request).
+- **AfriXNLI, Belebele, Injongo, SIB-200:** the card-run prompts. Injongo answers with the
+  intent number 1-40; SIB topics are in alphabetical order.
+- **Extraction:** the last standalone option (lm-eval `regex` filter) + `exact_match`
+  (ignore case/punctuation), instead of "reply starts with the letter".
+- **FLORES:** FLORES+ (`openlanguagedata/flores_plus` @ 5fec6c1) instead of FLORES-200;
+  cleaning = after the last `</think>`, before the first blank line, no prefix removal;
+  **SSA-COMET `ssa-comet-mtl-final`** (@ 4df7a3d), empty segments skipped.
+- `prepare` now also downloads new languages for datasets already on disk.
+
+## 1.1.0 — superseded, do not use
+1.1.0 reported FLORES with SSA-COMET-STL because that score landed near the card. According
+to the card authors' note, the card uses `ssa-comet-mtl-final`, and STL was close by chance.
+Choosing a metric for being closer to a target was a mistake on our part.
+
+Original 1.1.0 entry:
 - **Reported FLORES metric changed from SSA-COMET-MTL to SSA-COMET-STL**
   (McGill-NLP/ssa-comet-stl @ cd62867). Rescoring the unchanged v1.0.0 translations gives
   STL 61.4 (xx->eng 61.4, eng->xx 61.4) vs the card's 62.3; MTL gave 56.8. MTL is still

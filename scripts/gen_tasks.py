@@ -1,7 +1,8 @@
 """Generate tasks/afrobench_gen/*.yaml (one lm-eval task per benchmark x language).
 
-The generated YAMLs are committed. tests/test_tasks_frozen.py fails if they drift from
-this generator, so the task definitions cannot be edited by hand.
+AfriMGSM is not an lm-eval task: it needs 16 samples per question (vLLM n=16), which
+afbgen.math_runner does directly. The generated YAMLs are committed;
+tests/test_frozen.py fails if they drift from this generator.
 
     python scripts/gen_tasks.py            # write
     python scripts/gen_tasks.py --check    # exit 1 if files differ
@@ -16,9 +17,11 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from afbgen import langs  # noqa: E402
+from afbgen.tasklib import ANSWER_PATTERNS  # noqa: E402
 
 OUT = ROOT / "tasks" / "afrobench_gen"
 GEN = yaml.safe_load((ROOT / "configs" / "generation.yaml").read_text(encoding="utf-8"))
+LM_EVAL_TASKS = [t for t in langs.TASKS if t != "afrimgsm"]
 
 
 class Fn(str):
@@ -27,33 +30,25 @@ class Fn(str):
 
 yaml.SafeDumper.add_representer(Fn, lambda d, v: d.represent_scalar("!function", f"afb_utils.{v}"))
 
+# note 4.3: lm-eval `regex` filter (group_select 0) + take_first; exact_match, ignore case/punct.
+EXACT_MATCH = [{"metric": "exact_match", "aggregation": "mean", "higher_is_better": True,
+                "ignore_case": True, "ignore_punctuation": True}]
 
-def _filters(*named):
-    return [{"name": n, "filter": [{"function": "custom", "filter_fn": Fn(fn)}, {"function": "take_first"}]}
-            for n, fn in named]
+
+def mc_spec(task):
+    return dict(text=f"text_{task}", metrics=EXACT_MATCH, process=None,
+                filters=[{"name": "last_option", "filter": [
+                    {"function": "regex", "regex_pattern": ANSWER_PATTERNS[task], "group_select": 0},
+                    {"function": "take_first"}]}])
 
 
-ACC = [{"metric": "acc", "aggregation": "mean", "higher_is_better": True}]
-
-SPEC = {
-    "afrimgsm": dict(text="text_math", filters=_filters(("boxed_or_last", "filter_math")),
-                     process="process_math", metrics=ACC, gen="math"),
-    "afrimmlu": dict(text="text_mc", filters=_filters(("strict", "filter_mc_strict"), ("flexible", "filter_mc_flexible")),
-                     process="process_exact", metrics=ACC, gen="other"),
-    "afrixnli": dict(text="text_mc", filters=_filters(("strict", "filter_mc_strict"), ("flexible", "filter_mc_flexible")),
-                     process="process_exact", metrics=ACC, gen="other"),
-    "belebele": dict(text="text_mc", filters=_filters(("strict", "filter_mc_strict"), ("flexible", "filter_mc_flexible")),
-                     process="process_exact", metrics=ACC, gen="other"),
-    "sib": dict(text="text_mc", filters=_filters(("strict", "filter_mc_strict"), ("flexible", "filter_mc_flexible")),
-                process="process_exact", metrics=ACC, gen="other"),
-    "injongo": dict(text="text_injongo",
-                    filters=_filters(("strict", "filter_injongo_strict"), ("flexible", "filter_injongo_flexible")),
-                    process="process_exact", metrics=ACC, gen="other"),
-    "flores": dict(text="text_translation", filters=_filters(("clean", "filter_translation")),
-                   process="process_translation", gen="other",
-                   metrics=[{"metric": "chrfpp", "aggregation": Fn("agg_chrfpp"), "higher_is_better": True},
-                            {"metric": "bleu", "aggregation": Fn("agg_bleu"), "higher_is_better": True}]),
-}
+SPEC = {t: mc_spec(t) for t in ["afrimmlu", "afrixnli", "belebele", "injongo", "sib"]}
+SPEC["flores"] = dict(
+    text="text_translation", process="process_translation",
+    filters=[{"name": "clean", "filter": [{"function": "custom", "filter_fn": Fn("filter_translation")},
+                                          {"function": "take_first"}]}],
+    metrics=[{"metric": "chrfpp", "aggregation": Fn("agg_chrfpp"), "higher_is_better": True},
+             {"metric": "bleu", "aggregation": Fn("agg_bleu"), "higher_is_better": True}])
 
 
 def task_name(task: str, lang: str) -> str:
@@ -62,7 +57,6 @@ def task_name(task: str, lang: str) -> str:
 
 def render(task: str, lang: str) -> str:
     s = SPEC[task]
-    gen = {"until": [], **GEN[s["gen"]]["sampling"]}
     cfg = {
         "task": task_name(task, lang),
         "tag": [f"afbgen_{task}"],
@@ -73,18 +67,19 @@ def render(task: str, lang: str) -> str:
         "num_fewshot": 0,
         "doc_to_text": Fn(s["text"]),
         "doc_to_target": Fn("target"),
-        "generation_kwargs": gen,
+        "generation_kwargs": {"until": [], **GEN["other"]["sampling"]},
         "filter_list": s["filters"],
-        "process_results": Fn(s["process"]),
-        "metric_list": s["metrics"],
-        "metadata": {"version": 1.0},
     }
+    if s["process"]:
+        cfg["process_results"] = Fn(s["process"])
+    cfg["metric_list"] = s["metrics"]
+    cfg["metadata"] = {"version": 2.0}
     return "# Generated by scripts/gen_tasks.py -- do not edit.\n" + yaml.safe_dump(
         cfg, sort_keys=False, allow_unicode=True, width=1000)
 
 
 def expected_files() -> dict[str, str]:
-    files = {f"{task_name(t, l)}.yaml": render(t, l) for t in langs.TASKS for l in langs.TASK_LANGS[t]}
+    files = {f"{task_name(t, l)}.yaml": render(t, l) for t in LM_EVAL_TASKS for l in langs.TASK_LANGS[t]}
     files["afb_utils.py"] = (
         "# Generated by scripts/gen_tasks.py -- do not edit.\n"
         "# lm-eval resolves `!function afb_utils.x` relative to this directory.\n"

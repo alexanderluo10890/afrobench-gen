@@ -1,145 +1,107 @@
 # afrobench-gen
 
-A fixed evaluation harness for **AfroBench-Lite** that uses **generative** tasks and the
-prompts and decoding settings from the
+A fixed evaluation harness that reproduces the AfroBench-Lite numbers on the
 [AfriqueQwen3.5-4B-Instruct-v2 model card](https://huggingface.co/McGill-NLP/AfriqueQwen3.5-4B-Instruct-v2).
-It runs on L40S GPUs on the Mila and Vulcan clusters.
+Every task is generative, run through the model's chat template on L40S GPUs (Mila or Vulcan).
 
-Native AfroBench scores AfriMMLU, AfriXNLI, Belebele, SIB-200 and Injongo by log-likelihood
-(`output_type: multiple_choice`). Here every task is `generate_until`. The model writes an
-answer through its chat template, the answer is extracted, and it is scored by exact match.
-This matches how the card reports its numbers.
+**Since 2.0.0, every setting follows the card authors' note "How to match the
+AfriqueQwen3.5-4B-Instruct-v2 card numbers" (2026-10-29).** That covers languages, prompts,
+sampling, answer extraction, FLORES data, and the metric. The public card does not give all
+of these. Versions 1.x used our own guesses for them; see CHANGELOG.md.
 
-| Benchmark | AfroBench source | Here | Metric |
-|---|---|---|---|
-| AfriMGSM | `afrimgsm_cot` (generative) | Card math system prompt, thinking on, sampling | Number in the last `\boxed{}`, else the last number; exact match |
-| AfriMMLU | log-likelihood | Card MC template (A–D) | Exact match on the letter |
-| AfriXNLI | log-likelihood | Card MC template (A–C) | Exact match on the letter |
-| Belebele | log-likelihood | Card MC template (A–D), passage plus question | Exact match on the letter |
-| SIB-200 | log-likelihood | Card MC template (A–G) | Exact match on the letter |
-| Injongo | log-likelihood | Label output, 40 intents | Exact match on the label |
-| FLORES | generative | Card translation template | **SSA-COMET-STL** (×100); SSA-COMET-MTL, chrF++ and BLEU also stored |
+| Benchmark | Languages | Prompt (user message, zero-shot) | Decoding | Answer and metric |
+|---|---|---|---|---|
+| AfriMGSM | 18 | Instruction in the language (configs/math_instructions.yaml) + blank line + question. **No system message.** | Thinking on, T 0.7, top-p 0.8, top-k 20, presence 1.5, 10240 tokens, **16 samples** (vLLM n=16, seed 42) | Last `\boxed{}`'s last number, else the last number, read from the **full output** (thinking included). Mean accuracy over 250 × 16 |
+| AfriMMLU | 18 | Card MC template | Thinking off, greedy, 1024 tokens | Last standalone A–D (lm-eval `regex`), exact match |
+| AfriXNLI | 18 | Note Appendix B (A/B/C = entailment/neutral/contradiction) | same | Last standalone A–C, exact match |
+| Belebele | 25 | Note Appendix B (`Passage:` / `Question:`) | same | Last standalone A–D, exact match |
+| Injongo | 17 | Note Appendix B (40 intents, alphabetical, numbered 1–40) | same | Last standalone 1–40, exact match |
+| SIB-200 | 26 | Note Appendix B (7 topics, alphabetical, A–G) | same | Last standalone A–G, exact match |
+| FLORES | 24 × 2 directions | Card translation template | same | FLORES+ devtest; reply after the last `</think>`, before the first blank line, stripped; **SSA-COMET `ssa-comet-mtl-final`** × 100 (empty segments skipped). chrF++/BLEU also stored |
 
-Languages: the AfroBench-Lite set, which is English plus amh, hau, ibo, kin, lin, lug, orm,
-sna, sot, swa, xho, yor and zul. FLORES runs both directions between English and the 13
-African languages plus French (28 directions). **Reported averages cover the 13 African
-languages only.** English and French are evaluated but left out of the averages, and
-"Overall" is the mean of the 7 benchmark averages, as in the card.
+Language lists are in `afbgen/langs.py`. Each task average is the mean over **all** of its
+languages, English and French included where listed. FLORES is the mean of 48 directions.
+Overall is the mean of the 7 task averages.
 
 ## What is frozen, and how
 
 | Item | Pinned in | Enforced by |
 |---|---|---|
-| Model, datasets, SSA-COMET and its encoder (exact HF commits) | `configs/pins.yaml` | `afbgen.prepare` downloads exactly these, and `run_eval` refuses a model that is not the pinned revision |
+| Model, datasets (incl. FLORES+), SSA-COMET checkpoints and encoder | `configs/pins.yaml` | `afbgen.prepare` downloads exactly these; `run_eval`/`comet_score` refuse other revisions |
 | lm-eval-harness commit | `configs/pins.yaml`, `requirements/eval.in` | Installed from git at that commit |
-| Python environment | `requirements/*.lock` | `slurm/setup.sh` runs `uv pip sync` from the lock files |
-| Decoding settings | `configs/generation.yaml` | `tests/test_frozen.py` checks them against the card |
-| Prompts and task YAMLs | `afbgen/tasklib.py`, `scripts/gen_tasks.py` | The YAMLs are generated, and `tests/test_frozen.py` fails if they drift |
-| Code version | git commit plus `INFRA_VERSION` | `run_eval` refuses uncommitted code, and every result records the commit. All shards of a run must come from the same commit (`run.json`), and `aggregate` refuses to mix versions |
+| Python environments | `requirements/*.lock` | `slurm/setup.sh` runs `uv pip sync` |
+| Decoding, prompts, language lists | `configs/`, `afbgen/tasklib.py`, `afbgen/langs.py` | `tests/test_frozen.py`, `tests/test_extract.py` (prompts checked verbatim) |
+| Task YAMLs | generated by `scripts/gen_tasks.py` | `tests/test_frozen.py` fails on drift |
+| Code version | git commit + `INFRA_VERSION` | `run_eval` refuses uncommitted code; all shards of a run must share one commit (`run.json`); `aggregate` refuses mixed versions |
 
-Any change that can move a score must bump `INFRA_VERSION`, get a `CHANGELOG.md` entry
-and a git tag. That covers prompts, extraction, pins and settings.
+Any change that can move a score bumps `INFRA_VERSION` and gets a CHANGELOG entry and a git tag.
 
 ## Running
-
-One command on a login node does setup, downloads and submission: `bash slurm/bootstrap.sh v1.0.0`.
-Step by step:
 
 ```bash
 # once per cluster, on a login node
 git clone <this repo> && cd afrobench-gen
-bash slurm/setup.sh                                # uv venvs from the lock files
+bash slurm/setup.sh                                 # uv venvs from the lock files
 source slurm/env.sh
-hf auth login                                      # FLORES is gated: accept its terms on HF first
-$AFB_VENV/bin/python -m afbgen.prepare             # model, datasets, SSA-COMET at the pinned revisions
+$AFB_VENV/bin/hf auth login                         # FLORES+ is gated: accept its terms on HF first
+$AFB_VENV/bin/python -m afbgen.prepare              # model, datasets, SSA-COMET at the pinned revisions
 $AFB_VENV/bin/python -m afbgen.prepare --only verify
 
-# smoke test: 20 docs per language, one job per benchmark
-$AFB_VENV/bin/python slurm/submit.py --run v1.0.0 --limit 20 --submit
+# smoke test: first 10 items per language, one job per benchmark
+$AFB_VENV/bin/python slurm/submit.py --run v2.0.0 --limit 10 --submit
 
-# full run: ~24 parallel L40S jobs plus 1 SSA-COMET job
-$AFB_VENV/bin/python slurm/submit.py --run v1.0.0 --submit
-squeue --me
+# full run: AfriMGSM 18 languages x 2 parts + 21 jobs for the rest + 1 SSA-COMET job
+$AFB_VENV/bin/python slurm/submit.py --run v2.0.0 --submit
+# rerun the same command at any time; it only resubmits unfinished work
 
-# rerun the same command at any time; it only resubmits unfinished languages
-$AFB_VENV/bin/python slurm/submit.py --run v1.0.0 --submit
-
-# results
-$AFB_VENV/bin/python -m afbgen.aggregate --run-dir $AFB_RESULTS/v1.0.0
-# -> summary.csv, scores_wide.csv, scores_long.csv (import into Google Sheets)
+$AFB_VENV/bin/python -m afbgen.aggregate --run-dir $AFB_RESULTS/v2.0.0   # table + CSVs
+$AFB_VENV/bin/python -m afbgen.diagnose  --run-dir $AFB_RESULTS/v2.0.0   # per-language checks
 ```
 
 ### Cluster rules built in
 
-- **L40S only.** Every job requests `--gres=gpu:l40s:1`, and `run_eval` exits if the GPU is
-  not an L40S. A100 and H100 are never used.
-- **Mila uses the `long` partition** (`slurm/env.sh`). Vulcan uses account `aip-davlan`.
-- **3 h limit per job** (`--time=03:00:00`).
-- **Parallel.** Each benchmark is split into jobs of a few languages each
-  (`configs/shards.yaml`, ~24 jobs), so all benchmarks run at once.
-- **Preemption-safe.** Each generation is committed to a per-language SQLite cache as soon
-  as its vLLM chunk finishes (`chunk_size` in `configs/generation.yaml`). A language is
-  complete once its `results.json` is written; that file is written atomically and last.
-  Ten minutes before the time limit a job requeues itself. A requeued or preempted job
-  replays the cache and continues where it stopped.
+- **L40S only.** Every job requests `--gres=gpu:l40s:1`, and the code exits on any other GPU.
+- **Mila uses the `long` partition**; Vulcan uses account `aip-davlan`.
+- **3 h limit per job**; jobs requeue themselves 10 minutes before the limit and after crashes.
+- **Parallel**: `configs/shards.yaml` splits every benchmark into jobs; AfriMGSM into one
+  job per language and question range.
+- **Preemption-safe**: lm-eval tasks commit each vLLM chunk to a per-language SQLite cache;
+  AfriMGSM appends each finished chunk of questions (16 outputs each) to its part file with
+  fsync. A restarted job continues where it stopped. `results.json` is written atomically, last.
 
 ### Output layout
 
 ```
 $AFB_RESULTS/<run>/
-  run.json                       # commit + config every shard must match
-  <task>/<lang>/results.json     # metrics, n, GPU, host, job id, commit, package versions
-  <task>/<lang>/samples.jsonl    # prompt, raw response, extracted answer, target per doc
-  <task>/<lang>/cache_rank0.db   # generation cache (used for resume)
-  flores/<dir>/comet_stl.json    # SSA-COMET-STL system + segment scores (reported FLORES metric)
-  flores/<dir>/comet.json        # SSA-COMET-MTL (secondary; the reported metric in 1.0.0)
+  run.json                                  # commit + config every shard must match
+  afrimgsm/<lang>/part<p>of<K>.jsonl        # per question: prompt, 16 full outputs, preds, correct
+  <task>/<unit>/results.json                # metrics, n, GPU, host, job id, commit, package versions
+  <task>/<unit>/samples.jsonl               # lm-eval tasks: prompt, raw reply, extracted answer, target
+  flores/<src>-<tgt>/comet_mtl_final.json   # SSA-COMET-mtl-final segment + direction scores
   summary.csv  scores_wide.csv  scores_long.csv
 ```
 
-## Decisions to confirm (the card does not specify these)
+## Notes
 
-1. **Math system prompts for languages other than English and Swahili.** The card gives the
-   English and Swahili prompts and says to translate for other languages. Until official
-   translations exist, the other 11 languages use the English prompt with the language
-   name filled in ("…step by step in Hausa…"). Translations go in
-   `configs/math_system_prompts.yaml` under `overrides`.
-2. **Thinking and AfriMGSM extraction.** With `enable_thinking=true` the text up to
-   `</think>` is dropped, and the `\boxed{}` or last-number rule is applied to the answer
-   that follows. If the model never closes its thinking (it hit the 10,240-token limit), the
-   rule is applied to the whole output.
-3. **AfriXNLI and SIB-200 as multiple choice.** The card's A–D template is generalized to
-   A–C (entailment, neutral, contradiction, in that order) and A–G (the 7 SIB categories,
-   in AfroBench order).
-4. **Belebele.** The card's single `{question}` slot is filled with
-   `passage + blank line + question`.
-5. **Injongo** has 40 intents, too many for lettered options. The model is asked to reply
-   with the label itself (see `text_injongo`), and the label is scored by exact match.
-6. **Answer extraction.** `strict` requires the response to *start* with the letter or
-   label; markdown, quotes and a trailing period are tolerated. `flexible` also accepts
-   "The answer is X" and responses that repeat the option text. **Primary = strict.** Both
-   are stored in `scores_long.csv`.
-7. **Zero-shot everywhere, and a seed for sampling.** AfroBench-Lite uses 5-shot for
-   Belebele, SIB and FLORES, but the card describes zero-shot chat prompting. AfriMGSM is
-   sampled at temperature 0.7 with a fixed per-request seed (1234), so the result does not
-   depend on batching or resume order. The card does not mention a seed.
-8. **FLORES.** The output is trimmed to the first non-empty line, with an echoed
-   `"<Language>:"` prefix removed. The card says only "SSA-COMET". Since 1.1.0 the reported
-   score is the reference-based `ssa-comet-stl` checkpoint (×100): on the v1.0.0 outputs it
-   gives 61.4 vs the card's 62.3, while `ssa-comet-mtl` gives 56.8 with no other difference.
-   MTL is still computed and stored as a secondary column.
-9. **Language set and averages.** AfroBench-Lite languages; averages exclude English and
-   French (see above).
+- **Twi in FLORES+.** FLORES+ has two Twi files (Akuapem `twi_Latn_akua1239`, Asante
+  `twi_Latn_asan1239`). The note says `twi_Latn`, which in FLORES-200 was Akuapem, so we use
+  the Akuapem file (`afbgen/langs.py`).
+- **Per-language reference scores** of the card run (note, Appendix D) are not in this
+  public repository. Compare against them with the CSVs from `aggregate`.
 
 ## Repository layout
 
 ```
-afbgen/tasklib.py        loaders, prompts, answer extraction, scoring (all task logic)
-afbgen/run_eval.py       one shard: load vLLM once, loop languages, resumable
+afbgen/langs.py          language lists (note, Appendix A)
+afbgen/tasklib.py        loaders, prompts (Appendix B), extraction rules (4.2-4.4)
+afbgen/math_runner.py    AfriMGSM: vLLM n=16, preemption-safe part files
+afbgen/run_eval.py       one shard: load the model once, loop units, resumable
 afbgen/comet_score.py    SSA-COMET for finished FLORES directions
 afbgen/aggregate.py      CSVs + card-style table
+afbgen/diagnose.py       per-language failure analysis, exact logged prompts
 afbgen/prepare.py        pinned downloads
 scripts/gen_tasks.py     generates tasks/afrobench_gen/*.yaml
-configs/                 pins, generation settings, math prompts, sharding
-slurm/                   env.sh, setup.sh, eval.sbatch, comet.sbatch, submit.py
-tests/                   extraction, freeze checks, data checks
+configs/                 pins, decoding, AfriMGSM instructions (Appendix C), sharding
+slurm/                   env.sh, setup.sh, bootstrap.sh, eval.sbatch, comet.sbatch, submit.py
+tests/                   prompts verbatim, extraction rules, frozen settings, data sizes, AfriMGSM runner
 ```

@@ -4,11 +4,11 @@
 # 1. environment (uv venvs from lock files; writes + commits the lock files the first time)
 # 2. Hugging Face login if needed (FLORES is gated: accept its terms on the website first)
 # 3. pinned downloads: model, datasets, SSA-COMET; verifies every (task, language) loads
-# 4. submits a 20-doc smoke run AND the full run as parallel L40S jobs (both resumable;
+# 4. submits a 10-item smoke run; with FULL=1 also the full run (both resumable;
 #    rerunning this script later only resubmits unfinished work)
 set -euo pipefail
 cd "$(dirname "$0")/.."
-RUN=${1:-v1.0.0}
+RUN=${1:-v2.0.0}
 
 bash slurm/setup.sh
 source slurm/env.sh
@@ -25,8 +25,8 @@ fi
 "$AFB_VENV/bin/python" -m afbgen.prepare --only verify > "$AFB_ROOT/verify.json"
 echo ">>> all datasets load (sizes in $AFB_ROOT/verify.json)"
 
-"$AFB_VENV/bin/python" slurm/submit.py --run "$RUN" --limit 20 --submit
-"$AFB_VENV/bin/python" slurm/submit.py --run "$RUN" --submit
+"$AFB_VENV/bin/python" slurm/submit.py --run "$RUN" --limit 10 --submit
+if [[ "${FULL:-0}" == 1 ]]; then "$AFB_VENV/bin/python" slurm/submit.py --run "$RUN" --submit; fi
 squeue --me
 echo ">>> logs: $AFB_ROOT/logs/$RUN/   results: $AFB_RESULTS/$RUN/"
 echo ">>> when jobs finish: $AFB_VENV/bin/python -m afbgen.aggregate --run-dir $AFB_RESULTS/$RUN"

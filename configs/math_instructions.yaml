@@ -1,0 +1,58 @@
+# AfriMGSM instructions of the card run (card authors' note, 2026-10-29, Appendix C).
+# The user message is: instruction + "\n\n" + question. There is NO system message.
+# Keyed by FLORES-200 code (afbgen.langs.TO_FLORES maps the dataset's codes).
+
+amh_Ethi: |-
+  እርስዎ የሂሳብ ቃላዊ ችግሮችን የሚፈቱ አጋዥ ረዳት ነዎት።
+  እባክዎ በአማርኛ ደረጃ በደረጃ ያስቡ፣ እና የመጨረሻ መልስዎን በ\boxed{} ውስጥ ያስቀምጡ።
+eng_Latn: |-
+  You are a helpful assistant that solves math word problems.
+  Please reason step by step in English, and put your final answer within \boxed{}.
+ewe_Latn: |-
+  Ènye kpeɖeŋutɔ nyui si ɖea akɔntabubu-kuxi siwo woŋlɔ le nyawo me la gbɔ.
+  Meɖe kuku, bu nya la me afɔ ɖe afɔ le Eʋegbe me, eye nàŋlɔ wò ŋuɖoɖo mamlɛtɔ la ɖe \boxed{} me.
+fra_Latn: |-
+  Vous êtes un assistant serviable qui résout des problèmes de mathématiques rédigés sous forme d’énoncés.
+  Veuillez raisonner étape par étape en français et mettre votre réponse finale dans \boxed{}.
+hau_Latn: |-
+  Kai mataimaki ne mai taimako wanda yake warware matsalolin lissafi na rubutu.
+  Don Allah ka yi tunani mataki-mataki a Hausa, kuma ka sanya amsarka ta ƙarshe a cikin \boxed{}.
+ibo_Latn: |-
+  Ị bụ onye enyemaka bara uru nke na-edozi nsogbu mgbakọ na mwepụ e dere n'okwu.
+  Biko kọwaa echiche gị n'ụzọ usoro n'usoro n'Igbo, ma tinye azịza ikpeazụ gị n'ime \boxed{}.
+kin_Latn: |-
+  Uri umufasha ugira akamaro ukemura ibibazo by'imibare byanditse mu magambo.
+  Nyamuneka tekereza intambwe ku yindi mu Kinyarwanda, kandi ushyire igisubizo cyawe cya nyuma muri \boxed{}.
+lin_Latn: |-
+  Ozali mosungi ya malamu oyo asilisaka mikakatano ya matematiki oyo ekomami na maloba.
+  Nabondeli yo, limbolá makanisi na yo litambe na litambe na Lingála, mpe tyá eyano na yo ya nsuka na kati ya \boxed{}.
+lug_Latn: |-
+  Oli muyambi wa mugaso agonjoola ebizibu by’okubala ebiri mu bigambo.
+  Nkusaba onnyonnyole ensonga zo mutendera ku mutendera mu Luganda, era oteeke eky’okuddamu kyo ekisembayo mu \boxed{}.
+gaz_Latn: |-
+  Ati gargaaraa faayidaa qabu kan pirobleemota herregaa jechootaan ibsaman furuudha.
+  Maaloo Afaan Oromootiin tarkaanfii tarkaanfiin sababeessi, deebii kee isa dhumaas \boxed{} keessa kaa'i.
+sna_Latn: |-
+  Uri mubatsiri anobatsira anogadzirisa mibvunzo yemasvomhu yakanyorwa nemashoko.
+  Ndapota tsanangura mafungiro ako nhanho nenhanho muchiShona, uye isa mhinduro yako yekupedzisira mukati me\boxed{}.
+sot_Latn: |-
+  O mothusi ea molemo ea rarollang mathata a lipalo a ngotsoeng ka mantsoe.
+  Ka kopo, beha mabaka mohato ka mohato ka Sesotho sa Boroa, 'me u kenye karabo ea hao ea ho qetela ka har'a \boxed{}.
+swh_Latn: |-
+  Wewe ni msaidizi mwenye manufaa ambaye hutatua matatizo ya hisabati yaliyoandikwa kwa maneno.
+  Tafadhali toa hoja hatua kwa hatua kwa Kiswahili, na uweke jibu lako la mwisho ndani ya \boxed{}.
+twi_Latn: |-
+  Woyɛ ɔboafo pa a wudi akontaabu nsɛmmisa a ɛwɔ nsɛm mu ho dwuma.
+  Yɛsrɛ wo, fa Twi kyerɛkyerɛ wo nsusuwii mu anammɔn biara, na fa wo mmuae a etwa to no hyɛ \boxed{} mu.
+wol_Latn: |-
+  Yaa di ab jàppalekat bu am njariñ, buy saafara jafe-jafey xayma yi ñu tëral ci wax.
+  Tafal sa xalaat jéego ci jéego ci wolof, te nga def sa tontu bu mujj bi ci biir \boxed{}.
+xho_Latn: |-
+  Ungumncedisi oluncedo osombulula iingxaki zezibalo ezibhalwe ngamagama.
+  Nceda uqiqe inyathelo ngenyathelo ngesiXhosa, uze ufake impendulo yakho yokugqibela ngaphakathi ku-\boxed{}.
+yor_Latn: |-
+  Ìwọ jẹ́ olùrànlọ́wọ́ tó wúlò tí ń yan àwọn ìṣòro ìṣirò ọlọ̀rọ̀.
+  Jọ̀wọ́ ṣàlàyé ìrònú rẹ ní ìpele kọ̀ọ̀kan ní èdè Yorùbá, kí o sì fi ìdáhùn ìkẹyìn rẹ sínú \boxed{}.
+zul_Latn: |-
+  Ungumsizi owusizo oxazulula izinkinga zezibalo ezibhalwe ngamagama.
+  Sicela ucabange isinyathelo ngesinyathelo ngesiZulu, bese ufaka impendulo yakho yokugcina ngaphakathi kwe-\boxed{}.

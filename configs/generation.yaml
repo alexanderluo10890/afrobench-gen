@@ -1,9 +1,9 @@
-# Decoding settings, copied from the "Recommendation Prompting and Setting" table of
-# https://huggingface.co/McGill-NLP/AfriqueQwen3.5-4B-Instruct-v2 (revision pinned in pins.yaml).
+# Decoding settings of the card run (card authors' note, 2026-10-29, sections 4.2-4.4).
 
-math:            # AfriMGSM
+math:            # AfriMGSM (afbgen.math_runner, plain vLLM: n samples per question)
   enable_thinking: true
   max_model_len: 12288
+  n_samples: 16          # score = mean accuracy over 250 questions x 16 samples
   sampling:
     temperature: 0.7
     top_p: 0.8
@@ -11,12 +11,11 @@ math:            # AfriMGSM
     min_p: 0.0
     presence_penalty: 1.5
     repetition_penalty: 1.0
-    max_gen_toks: 10240
-    # Per-request seed so sampled outputs do not depend on batching / resume order.
-    # (Not in the card; the card does not specify a seed.)
-    seed: 1234
+    max_tokens: 10240
+    seed: 42             # per request; vLLM n=16, seed=42
+  questions_per_chunk: 32  # 32 x 16 = 512 sequences per vLLM call; written to disk after each
 
-other:           # AfriMMLU, AfriXNLI, Belebele, Injongo, SIB-200, FLORES
+other:           # AfriMMLU, AfriXNLI, Belebele, Injongo, SIB-200, FLORES (lm-eval)
   enable_thinking: false
   max_model_len: 8192
   sampling:
@@ -30,6 +29,5 @@ engine:
   language_model_only: true      # card: required, checkpoint has no vision weights
   gpu_memory_utilization: 0.90
   seed: 1234
-  # requests per vLLM call; results are committed to the on-disk cache after each chunk,
-  # so this is also the maximum amount of work lost on preemption.
+  # lm-eval requests per vLLM call; results are committed to the on-disk cache after each chunk.
   chunk_size: 256

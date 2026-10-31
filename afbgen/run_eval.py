@@ -23,9 +23,6 @@ from pathlib import Path
 
 from afbgen import INFRA_VERSION, config, langs
 
-THINK_END = "</think>"
-
-
 # --------------------------------------------------------------------------- provenance
 
 def git_state() -> dict:
@@ -51,14 +48,14 @@ def provenance(allow_dirty: bool) -> dict:
         except md.PackageNotFoundError:
             vers[p] = None
     return {"infra_version": INFRA_VERSION, "git": gs, "packages": vers, "pins": config.load("pins"),
-            "generation": config.load("generation"), "math_system_prompts": config.load("math_system_prompts")}
+            "generation": config.load("generation"), "math_instructions": config.load("math_instructions")}
 
 
 def lock_run_manifest(run_dir: Path, prov: dict):
     """All shards of a run must use identical code/config. First shard writes run.json."""
     run_dir.mkdir(parents=True, exist_ok=True)
     path = run_dir / "run.json"
-    key = {k: prov[k] for k in ("infra_version", "pins", "generation", "math_system_prompts")}
+    key = {k: prov[k] for k in ("infra_version", "pins", "generation", "math_instructions")}
     key["commit"] = prov["git"]["commit"]
     try:
         with open(path, "x", encoding="utf-8") as f:
@@ -86,12 +83,12 @@ def check_model(pins: dict, model_dir: Path):
 
 # --------------------------------------------------------------------------- model
 
-def build_lm(task: str, model_dir: Path):
+def build_lm(model_dir: Path):
+    """lm-eval vLLM model for the six non-math tasks (thinking off, greedy)."""
     from lm_eval.models.vllm_causallms import VLLM
 
     gen = config.load("generation")
-    mode = gen["math" if task == "afrimgsm" else "other"]
-    eng = gen["engine"]
+    mode, eng = gen["other"], gen["engine"]
     return VLLM(
         pretrained=str(model_dir),
         dtype=eng["dtype"],
@@ -102,7 +99,6 @@ def build_lm(task: str, model_dir: Path):
         gpu_memory_utilization=eng["gpu_memory_utilization"],
         language_model_only=eng["language_model_only"],
         enable_thinking=mode["enable_thinking"],
-        think_end_token=THINK_END if mode["enable_thinking"] else None,
     )
 
 
@@ -126,7 +122,6 @@ def evaluate_units(lm, task: str, lang_list: list[str], run_dir: Path, meta: dic
             continue
         unit.mkdir(parents=True, exist_ok=True)
         name = f"afbgen_{task}_{lang}"
-        sysmsg = config.math_system_prompt(lang) if task == "afrimgsm" else None
         t0 = time.time()
         print(f"[run ] {name}", flush=True)
         out = simple_evaluate(
@@ -134,7 +129,7 @@ def evaluate_units(lm, task: str, lang_list: list[str], run_dir: Path, meta: dic
             tasks=[name],
             task_manager=tm,
             apply_chat_template=True,
-            system_instruction=sysmsg,
+            system_instruction=None,          # note 4.3: no system message
             log_samples=True,
             use_cache=str(unit / "cache"),
             bootstrap_iters=0,
@@ -146,7 +141,7 @@ def evaluate_units(lm, task: str, lang_list: list[str], run_dir: Path, meta: dic
         res = {
             "task": task, "lang": lang, "lm_eval_task": name, "n": len({s["doc_id"] for s in samples}),
             "metrics": {k: v for k, v in out["results"][name].items() if k != "alias"},
-            "system_prompt": sysmsg, "seconds": round(time.time() - t0, 1), "limit": limit,
+            "seconds": round(time.time() - t0, 1), "limit": limit,
             **meta,
         }
         _atomic_write(unit / "results.json", json.dumps(res, indent=1, ensure_ascii=False, default=str))
@@ -157,14 +152,15 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--run-dir", required=True, type=Path)
     ap.add_argument("--task", required=True, choices=langs.TASKS)
-    ap.add_argument("--langs", required=True, help="comma-separated, e.g. eng,hau  (flores: hau-eng,eng-hau)")
+    ap.add_argument("--langs", required=True,
+                    help="comma-separated, e.g. eng,hau  (flores: hau_Latn-eng_Latn; afrimgsm: hau:0/2,hau:1/2)")
     ap.add_argument("--limit", type=int, default=None, help="debug only: first N docs per language")
     ap.add_argument("--allow-dirty", action="store_true")
     ap.add_argument("--allow-any-gpu", action="store_true", help="debug only")
     a = ap.parse_args()
 
     lang_list = a.langs.split(",")
-    bad = [l for l in lang_list if l not in langs.TASK_LANGS[a.task]]
+    bad = [l for l in lang_list if l.split(":")[0] not in langs.TASK_LANGS[a.task]]
     if bad:
         sys.exit(f"unknown languages for {a.task}: {bad}")
     run_dir = a.run_dir if a.limit is None else a.run_dir.with_name(a.run_dir.name + f"-limit{a.limit}")
@@ -180,7 +176,15 @@ def main():
             "infra_version": INFRA_VERSION, "git": prov["git"], "packages": prov["packages"],
             "model": pins["model"]}
     print(json.dumps(meta, indent=1), flush=True)
-    lm = build_lm(a.task, mdir)
+    if a.task == "afrimgsm":
+        from afbgen import math_runner
+
+        llm = math_runner.build_llm(mdir)
+        for spec in lang_list:
+            lang, p, k = math_runner.parse_unit(spec)
+            math_runner.run_unit(llm, lang, p, k, run_dir, meta, limit=a.limit)
+        return
+    lm = build_lm(mdir)
     evaluate_units(lm, a.task, lang_list, run_dir, meta, limit=a.limit)
 
 

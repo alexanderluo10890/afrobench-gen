@@ -24,8 +24,14 @@ sys.path.insert(0, str(REPO))
 from afbgen import langs  # noqa: E402
 
 
-def shards(task: str, per_job: int, run_dir: Path) -> list[list[str]]:
+def shards(task: str, cfg: dict, run_dir: Path, smoke: bool) -> list[list[str]]:
     todo = [l for l in langs.TASK_LANGS[task] if not (run_dir / task / l / "results.json").exists()]
+    if task == "afrimgsm":
+        # one job per (language, question range); a smoke test runs everything in one job
+        k = 1 if smoke else cfg["parts_per_language"]
+        units = [f"{l}:{p}/{k}" for l in todo for p in range(k)]
+        return [units] if smoke else [[u] for u in units]
+    per_job = 99 if smoke else cfg["languages_per_job"]
     return [todo[i:i + per_job] for i in range(0, len(todo), per_job)]
 
 
@@ -54,9 +60,6 @@ def main():
     run_dir = Path(os.environ["AFB_RESULTS"]) / (a.run if a.limit is None else f"{a.run}-limit{a.limit}")
     if a.limit is not None:
         os.environ["AFB_LIMIT"] = str(a.limit)  # sbatch exports the environment to the job
-        cfg_override = 99  # one job per benchmark is plenty for a smoke test
-    else:
-        cfg_override = None
     logs = Path(os.environ["AFB_ROOT"]) / "logs" / run_dir.name
     logs.mkdir(parents=True, exist_ok=True)
     cluster_args = os.environ["AFB_SBATCH_ARGS"].split()
@@ -64,8 +67,7 @@ def main():
 
     flores_ids, n = [], 0
     for task in a.tasks.split(","):
-        per_job = cfg_override or cfg[task]["languages_per_job"]
-        for i, group in enumerate(shards(task, per_job, run_dir)):
+        for i, group in enumerate(shards(task, cfg[task], run_dir, a.limit is not None)):
             name = f"afb-{task}-{i}"
             jid = sbatch(["sbatch", *cluster_args, f"--job-name={name}", f"--output={logs}/{name}.out",
                           str(REPO / "slurm" / "eval.sbatch"), str(run_dir if a.limit is None else Path(os.environ["AFB_RESULTS"]) / a.run), task, ",".join(group), str(REPO)],

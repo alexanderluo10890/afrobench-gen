@@ -1,11 +1,10 @@
-"""Generative AfroBench-Lite tasks with the AfriqueQwen3.5 model-card prompts.
+"""AfroBench-Lite as generative tasks, with the settings of the card run.
 
-Everything lm-eval needs (dataset loaders, prompt builders, answer extraction filters,
-scoring, aggregation) lives here; the task YAMLs in tasks/afrobench_gen/ only reference
-these functions through tasks/afrobench_gen/afb_utils.py.
+Source of every prompt, mapping and rule below: the card authors' note "How to match the
+AfriqueQwen3.5-4B-Instruct-v2 card numbers" (2026-10-29), sections 4.2-4.4 and Appendix B.
 
 Datasets are read from local snapshots made by `python -m afbgen.prepare` (pinned
-revisions, see configs/pins.yaml), so evaluation never touches the network.
+revisions, configs/pins.yaml), so evaluation never touches the network.
 """
 
 from __future__ import annotations
@@ -18,11 +17,10 @@ from pathlib import Path
 
 from afbgen import langs
 
-LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+LETTERS = "ABCDEFG"
 
-XNLI_LABELS = ["entailment", "neutral", "contradiction"]  # dataset label ids 0, 1, 2
-SIB_LABELS = ["science/technology", "travel", "politics", "sports", "health", "entertainment", "geography"]
-INJONGO_LABELS = [
+# Injongo: the 40 intents, alphabetical, numbered 1-40; the target is the number.
+INJONGO_INTENTS = [
     "alarm", "balance", "bill_balance", "book_flight", "book_hotel", "calendar_update",
     "cancel_reservation", "car_rental", "confirm_reservation", "cook_time", "exchange_rate",
     "food_last", "freeze_account", "ingredients_list", "interest_rate", "international_visa",
@@ -32,6 +30,20 @@ INJONGO_LABELS = [
     "transactions", "transfer", "translate", "travel_notification", "travel_suggestion",
     "update_playlist", "weather",
 ]
+assert INJONGO_INTENTS == sorted(INJONGO_INTENTS) and len(INJONGO_INTENTS) == 40
+
+# SIB-200: categories in alphabetical order -> A..G (dataset value -> prompt label)
+SIB_CATEGORIES = ["entertainment", "geography", "health", "politics", "science/technology", "sports", "travel"]
+SIB_LABELS = ["Entertainment", "Geography", "Health", "Politics", "Science/Technology", "Sports", "Travel"]
+
+# lm-eval `regex` filter patterns (group_select 0, then take_first): the LAST standalone option.
+ANSWER_PATTERNS = {
+    "afrimmlu": r"(?s).*\b([A-D])\b",
+    "afrixnli": r"(?s).*\b([A-C])\b",
+    "belebele": r"(?s).*\b([A-D])\b",
+    "sib": r"(?s).*\b([A-G])\b",
+    "injongo": r"(?s).*\b([1-9]|[1-3][0-9]|40)\b",
+}
 
 
 # --------------------------------------------------------------------------- data
@@ -62,13 +74,8 @@ def _as_dataset(rows: list[dict]):
     return datasets.DatasetDict({"test": datasets.Dataset.from_list(rows)})
 
 
-def _mc_doc(question: str, options: list[str], answer_idx: int, **extra) -> dict:
-    return {"question": question, "options": list(options), "answer_idx": int(answer_idx),
-            "target": LETTERS[int(answer_idx)], **extra}
-
-
 def load_rows(task: str, lang: str) -> list[dict]:
-    """Return the test split for (task, lang) as a list of normalized docs."""
+    """Test split for (task, lang) as normalized docs; every doc has a string `target`."""
     d = data_dir(task)
     if task == "afrimgsm":
         return [{"question": r["question"], "target": r["answer_number"].strip(), "lang": lang}
@@ -76,53 +83,40 @@ def load_rows(task: str, lang: str) -> list[dict]:
     if task == "afrimmlu":
         rows = []
         for r in _read_tsv(d / "data" / lang / "test.tsv"):
-            options = ast.literal_eval(r["choices"])
-            rows.append(_mc_doc(r["question"], options, LETTERS.index(r["answer"].strip()),
-                                subject=r["subject"], lang=lang))
+            opts = ast.literal_eval(r["choices"])
+            rows.append({"question": r["question"], "A": opts[0], "B": opts[1], "C": opts[2], "D": opts[3],
+                         "target": r["answer"].strip(), "lang": lang})
         return rows
     if task == "afrixnli":
-        rows = []
-        for r in _read_tsv(d / "data" / lang / "test.tsv"):
-            q = (f"Premise: {r['premise']}\nHypothesis: {r['hypothesis']}\n"
-                 "What is the relationship between the premise and the hypothesis?")
-            rows.append(_mc_doc(q, XNLI_LABELS, int(r["label"]), lang=lang))
-        return rows
+        return [{"premise": r["premise"], "hypothesis": r["hypothesis"], "target": "ABC"[int(r["label"])],
+                 "lang": lang} for r in _read_tsv(d / "data" / lang / "test.tsv")]
     if task == "belebele":
-        rows = []
-        for r in _read_jsonl(d / "data" / f"{langs.flores_code(lang)}.jsonl"):
-            q = f"{r['flores_passage']}\n\n{r['question'].strip()}"
-            options = [r[f"mc_answer{i}"] for i in range(1, 5)]
-            rows.append(_mc_doc(q, options, int(r["correct_answer_num"]) - 1, lang=lang))
-        return rows
+        return [{"passage": r["flores_passage"], "question": r["question"], "A": r["mc_answer1"],
+                 "B": r["mc_answer2"], "C": r["mc_answer3"], "D": r["mc_answer4"],
+                 "target": "ABCD"[int(r["correct_answer_num"]) - 1], "lang": lang}
+                for r in _read_jsonl(d / "data" / f"{lang}.jsonl")]
     if task == "sib":
-        rows = []
-        for r in _read_tsv(d / "data" / langs.flores_code(lang) / "test.tsv"):
-            q = f"What is the topic of the following text?\n\n{r['text']}"
-            rows.append(_mc_doc(q, SIB_LABELS, SIB_LABELS.index(r["category"].strip()), lang=lang))
-        return rows
+        return [{"text": r["text"], "target": LETTERS[SIB_CATEGORIES.index(r["category"].strip())], "lang": lang}
+                for r in _read_tsv(d / "data" / lang / "test.tsv")]
     if task == "injongo":
-        return [{"text": r["text"], "target": r["intent"].strip(), "lang": lang}
-                for r in _read_jsonl(d / lang / "test.jsonl")]
+        # the card loader skips rows whose intent is not one of the 40 intents in the prompt
+        return [{"text": r["text"], "target": str(INJONGO_INTENTS.index(r["intent"].strip()) + 1),
+                 "intent": r["intent"].strip(), "lang": lang}
+                for r in _read_jsonl(d / lang / "test.jsonl") if r["intent"].strip() in INJONGO_INTENTS]
     if task == "flores":
         src, tgt = lang.split("-")
-        src_s, tgt_s = _flores_side(d, src), _flores_side(d, tgt)
-        assert len(src_s) == len(tgt_s), (lang, len(src_s), len(tgt_s))
-        return [{"source": s, "target": t, "src_name": langs.name(src), "tgt_name": langs.name(tgt),
-                 "lang": lang} for s, t in zip(src_s, tgt_s)]
+        s, t = _flores_plus(d, src), _flores_plus(d, tgt)
+        ids = sorted(set(s) & set(t))
+        assert len(ids) == len(s) == len(t), (lang, len(s), len(t), len(ids))
+        return [{"id": i, "source": s[i], "target": t[i], "src_name": langs.FLORES_NAMES[src],
+                 "tgt_name": langs.FLORES_NAMES[tgt], "lang": lang} for i in ids]
     raise KeyError(task)
 
 
-def _flores_side(d: Path, lang: str) -> list[str]:
-    import pandas as pd
-
-    files = sorted((d / "data" / "language" / langs.flores_code(lang)).glob("devtest-*.parquet"))
-    if not files:
-        raise FileNotFoundError(f"no FLORES devtest parquet for {lang} under {d}")
-    df = pd.concat([pd.read_parquet(f) for f in files])
-    if "id" in df.columns:
-        df = df.sort_values("id")
-    col = "sentence" if "sentence" in df.columns else "text"
-    return df[col].tolist()
+def _flores_plus(d: Path, code: str) -> dict:
+    """FLORES+ devtest for one language: {sentence id: text}; directions are joined by id."""
+    path = d / "devtest" / f"{langs.FLORES_PLUS_FILE[code]}.jsonl"
+    return {int(r["id"]): r["text"] for r in _read_jsonl(path)}
 
 
 def make_loader(task: str):
@@ -132,7 +126,6 @@ def make_loader(task: str):
     return _load
 
 
-load_afrimgsm = make_loader("afrimgsm")
 load_afrimmlu = make_loader("afrimmlu")
 load_afrixnli = make_loader("afrixnli")
 load_belebele = make_loader("belebele")
@@ -141,35 +134,65 @@ load_injongo = make_loader("injongo")
 load_flores = make_loader("flores")
 
 
-# --------------------------------------------------------------------------- prompts
-# Card "Multiple choice" template, generalized from 4 to N options:
-# the letter list "(A, B, C, or D)" and the option lines follow the number of options.
+# --------------------------------------------------------------------------- prompts (Appendix B)
 
-def _letter_list(n: int) -> str:
-    ls = list(LETTERS[:n])
-    return ls[0] if n == 1 else ", ".join(ls[:-1]) + (", or " if n > 2 else " or ") + ls[-1]
-
-
-def text_mc(doc: dict) -> str:
-    n = len(doc["options"])
-    opts = "\n".join(f"{LETTERS[i]}. {o}" for i, o in enumerate(doc["options"]))
+def text_afrimmlu(doc: dict) -> str:
     return (
         "Answer the multiple-choice question by replying with ONLY the letter\n"
-        f"({_letter_list(n)}) of the correct answer.\n\n"
+        "(A, B, C, or D) of the correct answer.\n\n"
         f"Question: {doc['question']}\n\n"
+        f"A. {doc['A']}\nB. {doc['B']}\nC. {doc['C']}\nD. {doc['D']}\n\n"
+        "Answer:"
+    )
+
+
+def text_afrixnli(doc: dict) -> str:
+    return (
+        "Determine the relationship between the premise and the hypothesis. Reply with ONLY the\n"
+        "letter of the correct option: A (entailment — the hypothesis follows from the premise),\n"
+        "B (neutral — neither follows nor contradicts), or C (contradiction — the hypothesis\n"
+        "contradicts the premise).\n\n"
+        f"Premise: {doc['premise']}\n"
+        f"Hypothesis: {doc['hypothesis']}\n\n"
+        "A. Entailment\nB. Neutral\nC. Contradiction\n\n"
+        "Answer:"
+    )
+
+
+def text_belebele(doc: dict) -> str:
+    return (
+        "Read the passage and answer the multiple-choice question by replying with ONLY the\n"
+        "letter (A, B, C, or D) of the correct answer.\n\n"
+        f"Passage: {doc['passage']}\n\n"
+        f"Question: {doc['question']}\n\n"
+        f"A. {doc['A']}\nB. {doc['B']}\nC. {doc['C']}\nD. {doc['D']}\n\n"
+        "Answer:"
+    )
+
+
+def text_injongo(doc: dict) -> str:
+    intents = "\n".join(f"{i}. {name}" for i, name in enumerate(INJONGO_INTENTS, 1))
+    return (
+        "Classify the intent of the following request. Reply with ONLY the number\n"
+        "(1-40) of the correct intent from the list.\n\n"
+        f"Request: {doc['text']}\n\n"
+        f"Intents:\n{intents}\n\n"
+        "Answer:"
+    )
+
+
+def text_sib(doc: dict) -> str:
+    opts = "\n".join(f"{L}. {name}" for L, name in zip(LETTERS, SIB_LABELS))
+    return (
+        "Classify the topic of the following text. Reply with ONLY the letter\n"
+        "(A, B, C, D, E, F, or G) of the correct topic.\n\n"
+        f"Text: {doc['text']}\n\n"
         f"{opts}\n\n"
         "Answer:"
     )
 
 
-def text_math(doc: dict) -> str:
-    # The instruction is in the system prompt (configs/math_system_prompts.yaml);
-    # the user turn is the bare question, as in the card's usage example.
-    return doc["question"]
-
-
 def text_translation(doc: dict) -> str:
-    # Card "Translation" template.
     return (
         f"Translate the following sentence from {doc['src_name']} to {doc['tgt_name']}.\n\n"
         f"{doc['src_name']}: {doc['source']}\n"
@@ -177,149 +200,72 @@ def text_translation(doc: dict) -> str:
     )
 
 
-def text_injongo(doc: dict) -> str:
-    # Not in the card (40 labels do not fit the A-D template): label-output variant
-    # in the same style. See README "Decisions to confirm".
-    return (
-        "Classify the intent of the text by replying with ONLY one label from the list below.\n\n"
-        f"Text: {doc['text']}\n\n"
-        f"Labels: {', '.join(INJONGO_LABELS)}\n\n"
-        "Answer:"
-    )
+def text_math(instruction: str, question: str) -> str:
+    """AfriMGSM user message (4.2): instruction, a blank line, the question. No system message."""
+    return f"{instruction}\n\n{question}"
 
 
 def target(doc: dict) -> str:
     return doc["target"]
 
 
-# --------------------------------------------------------------------------- extraction
+# --------------------------------------------------------------------------- AfriMGSM extraction (4.2)
 
-_STRIP = " \t\n\r*_`'\"“”‘’"
-
-
-def _strip_md(s: str) -> str:
-    return s.strip().strip(_STRIP).strip()
-
-
-def extract_letter_strict(resp: str, n: int) -> str:
-    """The response must start with the letter, e.g. 'B', 'B.', '(B)', '**B**', 'B) text'."""
-    s = _strip_md(resp)
-    m = re.match(r"^\(?([A-Z])(?![A-Za-z0-9])", s)
-    if m and m.group(1) in LETTERS[:n]:
-        return m.group(1)
-    return ""
-
-
-def extract_letter_flexible(resp: str, options: list[str]) -> str:
-    n = len(options)
-    if (x := extract_letter_strict(resp, n)):
-        return x
-    valid = LETTERS[:n]
-    for pat in (r"answer\s*(?:is|:)?\s*:?\s*\**\(?([A-Z])\)?(?![A-Za-z0-9])",
-                r"^\s*(?:option|choice)\s*\(?([A-Z])\)?(?![A-Za-z0-9])"):
-        for m in re.finditer(pat, resp, flags=re.IGNORECASE | re.MULTILINE):
-            if m.group(1).upper() in valid:
-                return m.group(1).upper()
-    s = _strip_md(resp).rstrip(".").strip().lower()
-    for i, o in enumerate(options):
-        if s == o.strip().lower():
-            return LETTERS[i]
-    return ""
-
-
-_NUM = r"-?\d[\d,]*(?:\.\d+)?"
-
-
-def _norm_number(s: str) -> str:
-    s = s.replace(",", "").replace("$", "").strip()
-    try:
-        v = float(s)
-    except ValueError:
-        return ""
-    return str(int(v)) if v == int(v) else repr(v)
+_MINUS = dict.fromkeys(map(ord, "−﹣－"), "-")   # Unicode minus signs -> '-' (not dashes)
+_SPACE_IN_NUMBER = re.compile(r"(?<=\d)[    ](?=\d)")  # no-break / thin spaces
+_NUMBER = re.compile(r"-?\d[\d,]*(?:\.\d+)?")
 
 
 def _last_boxed(s: str) -> str | None:
     i = s.rfind("\\boxed{")
     if i < 0:
         return None
-    j, depth = i + len("\\boxed{"), 1
-    k = j
+    j = k = i + len("\\boxed{")
+    depth = 1
     while k < len(s) and depth:
-        if s[k] == "{":
-            depth += 1
-        elif s[k] == "}":
-            depth -= 1
+        depth += {"{": 1, "}": -1}.get(s[k], 0)
         k += 1
     return s[j:k - 1] if depth == 0 else s[j:]
 
 
-def extract_math(resp: str) -> str:
-    """Card rule: the number inside \\boxed{} or else the last number in the output."""
-    boxed = _last_boxed(resp)
-    if boxed is not None:
-        nums = re.findall(_NUM, boxed.replace("\\,", "").replace("{,}", ","))
-        if nums:
-            return _norm_number(nums[-1])
-    nums = re.findall(_NUM, resp)
-    return _norm_number(nums[-1]) if nums else ""
+def _to_float(num: str) -> float | None:
+    try:
+        return float(num.replace(",", ""))
+    except ValueError:
+        return None
 
 
-def _norm_label(s: str) -> str:
-    return re.sub(r"\s+", " ", _strip_md(s).lower().rstrip(".").strip())
+def extract_math(output: str) -> float | None:
+    """Card rule on the FULL output (thinking included):
+    1. Unicode minus -> '-', drop no-break/thin spaces between digits;
+    2. last \\boxed{...}: its last number; a box without a number is wrong (None);
+    3. no box: the last number in the output; 4. thousands commas removed."""
+    s = _SPACE_IN_NUMBER.sub("", output.translate(_MINUS))
+    boxed = _last_boxed(s)
+    nums = _NUMBER.findall(boxed if boxed is not None else s)
+    return _to_float(nums[-1]) if nums else None
 
 
-def extract_label_strict(resp: str, labels: list[str]) -> str:
-    s = _norm_label(resp)
-    return s if s in labels else ""
+def math_correct(output: str, gold: str) -> bool:
+    pred, ref = extract_math(output), _to_float(gold)
+    return pred is not None and ref is not None and abs(pred - ref) <= 1e-6
 
 
-def extract_label_flexible(resp: str, labels: list[str]) -> str:
-    if (x := extract_label_strict(resp, labels)):
-        return x
-    low = resp.lower()
-    best = None  # earliest occurrence; longest label wins ties (bill_balance over balance)
-    for lab in labels:
-        m = re.search(rf"(?<![a-z_]){re.escape(lab)}(?![a-z_])", low)
-        if m and (best is None or (m.start(), -len(lab)) < (best[0], -len(best[1]))):
-            best = (m.start(), lab)
-    return best[1] if best else ""
+# --------------------------------------------------------------------------- FLORES cleaning (4.4)
+
+def clean_translation(reply: str) -> str:
+    """After the last </think>; before the first blank line; stripped. No prefix removal."""
+    if "</think>" in reply:
+        reply = reply.rsplit("</think>", 1)[1]
+    return reply.split("\n\n", 1)[0].strip()
 
 
-def clean_translation(resp: str, tgt_name: str) -> str:
-    s = resp.strip()
-    s = re.sub(rf"^{re.escape(tgt_name)}\s*:\s*", "", s, flags=re.IGNORECASE)
-    lines = [ln.strip() for ln in s.splitlines() if ln.strip()]
-    return lines[0] if lines else ""
-
-
-# lm-eval `custom` filters: (resps: list[list[str]], docs) -> list[list[str]]
-
-def _fmap(fn):
-    def _f(resps, docs):
-        return [[fn(r, d) for r in rs] for rs, d in zip(resps, docs)]
-    return _f
-
-
-filter_mc_strict = _fmap(lambda r, d: extract_letter_strict(r, len(d["options"])))
-filter_mc_flexible = _fmap(lambda r, d: extract_letter_flexible(r, d["options"]))
-filter_math = _fmap(lambda r, d: extract_math(r))
-filter_injongo_strict = _fmap(lambda r, d: extract_label_strict(r, INJONGO_LABELS))
-filter_injongo_flexible = _fmap(lambda r, d: extract_label_flexible(r, INJONGO_LABELS))
-filter_translation = _fmap(lambda r, d: clean_translation(r, d["tgt_name"]))
-
-
-# --------------------------------------------------------------------------- scoring
-
-def process_exact(doc: dict, results: list[str]) -> dict:
-    return {"acc": float(results[0] == doc["target"])}
-
-
-def process_math(doc: dict, results: list[str]) -> dict:
-    return {"acc": float(results[0] != "" and results[0] == _norm_number(doc["target"]))}
+def filter_translation(resps, docs):
+    return [[clean_translation(r) for r in rs] for rs in resps]
 
 
 def process_translation(doc: dict, results: list[str]) -> dict:
+    # chrF++ / BLEU are secondary; the reported FLORES metric is SSA-COMET (afbgen.comet_score)
     pair = (doc["target"], results[0])
     return {"chrfpp": pair, "bleu": pair}
 
