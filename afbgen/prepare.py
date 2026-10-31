@@ -69,7 +69,18 @@ def prepare_comet(pins):
     for name, v in c["variants"].items():
         _snapshot(v["repo"], v["revision"], data_root() / "models" / f"ssa-comet-{name}")
     # COMET rebuilds its encoder from the hub id in hparams.yaml (at "main"), so put the
-    # pinned encoder in the HF cache and point refs/main at it for offline use.
+    # pinned encoder in the HF cache and point refs/main at it for offline use. Leave a
+    # correct cache untouched: rewriting it while jobs run can make files briefly invisible
+    # to compute nodes on network storage.
+    from huggingface_hub import try_to_load_from_cache
+
+    cached = try_to_load_from_cache(c["encoder_repo"], "tokenizer.json", revision=c["encoder_revision"])
+    refs = None
+    if isinstance(cached, str):
+        refs = Path(cached).parents[2] / "refs"
+    if refs is not None and (refs / "main").exists() and (refs / "main").read_text().strip() == c["encoder_revision"]:
+        print(f"[skip] encoder {c['encoder_repo']}@{c['encoder_revision'][:10]} already in HF cache")
+        return
     path = snapshot_download(repo_id=c["encoder_repo"], revision=c["encoder_revision"])
     refs = Path(path).parents[1] / "refs"
     refs.mkdir(exist_ok=True)

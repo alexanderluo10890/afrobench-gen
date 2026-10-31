@@ -12,7 +12,16 @@ set -uo pipefail
 RUN_DIR=$1; REPO=${2:-$SLURM_SUBMIT_DIR}; VARIANT=${3:-}
 cd "$REPO"
 source slurm/env.sh
-export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1
-echo "== $(date -Is) job=$SLURM_JOB_ID host=$(hostname)"
+export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONDONTWRITEBYTECODE=1
+MAX_RESTARTS=${AFB_MAX_RESTARTS:-6}
+echo "== $(date -Is) job=$SLURM_JOB_ID restart=${SLURM_RESTART_COUNT:-0} host=$(hostname)"
 nvidia-smi --query-gpu=name --format=csv,noheader
 "$AFB_VENV_COMET/bin/python" -u -m afbgen.comet_score --run-dir "$RUN_DIR" ${VARIANT:+--variant "$VARIANT"}
+RC=$?
+echo "== $(date -Is) exit $RC"
+# Crash (e.g. a file briefly invisible on network storage while importing / loading the
+# encoder): requeue; finished directions are skipped on the next attempt.
+if (( RC != 0 )) && (( ${SLURM_RESTART_COUNT:-0} < MAX_RESTARTS )); then
+  scontrol requeue "$SLURM_JOB_ID" && echo "== requeued after failure"
+fi
+exit $RC

@@ -34,4 +34,5 @@ VIRTUAL_ENV="$AFB_VENV_COMET" uv pip install --no-deps -e .
 "$AFB_VENV_COMET/bin/python" -c "import comet; print('comet ok')"
 # Precompile bytecode once so parallel jobs only read (they run with PYTHONDONTWRITEBYTECODE=1).
 "$AFB_VENV/bin/python" -m compileall -q -j 8 "$AFB_VENV/lib" >/dev/null 2>&1 || true
+"$AFB_VENV_COMET/bin/python" -m compileall -q -j 8 "$AFB_VENV_COMET/lib" >/dev/null 2>&1 || true
 echo "setup done. next: $AFB_VENV/bin/python -m afbgen.prepare"
