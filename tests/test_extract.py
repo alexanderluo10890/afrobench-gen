@@ -133,3 +133,26 @@ def test_clean_translation(reply, want):
 def test_corpus_metrics():
     pytest.importorskip("sacrebleu")
     assert T.agg_chrfpp([("the cat sat", "the cat sat"), ("a dog", "a dog")]) == pytest.approx(100.0)
+
+
+# ---------------------------------------------------------------- extra benchmarks (not on the card)
+
+def test_prompt_globalpiqa():
+    assert T.text_globalpiqa({"question": "To open a jar,", "options": ["twist the lid", "eat it"]}) == (
+        "Answer the multiple-choice question by replying with ONLY the letter\n"
+        "(A or B) of the correct answer.\n\nQuestion: To open a jar,\n\nA. twist the lid\nB. eat it\n\nAnswer:")
+
+
+def test_prompt_mmluprox_letter_list_follows_option_count():
+    ten = T.text_mmluprox({"question": "Q?", "options": [str(i) for i in range(10)]})
+    assert "(A, B, C, D, E, F, G, H, I, or J)" in ten and ten.endswith("\nJ. 9\n\nAnswer:")
+    four = T.text_mmluprox({"question": "Q?", "options": ["a", "b", "c", "d"]})
+    assert four == T.text_afrimmlu({"question": "Q?", "A": "a", "B": "b", "C": "c", "D": "d"})  # = card template
+
+
+@pytest.mark.parametrize("task,reply,want", [
+    ("globalpiqa", "B", "B"), ("globalpiqa", "A. twist the lid", "A"), ("globalpiqa", "C", "[invalid]"),
+    ("mmluprox", "J", "J"), ("mmluprox", "The answer is (H).", "H"), ("mmluprox", "K", "[invalid]"),
+])
+def test_extra_last_option(task, reply, want):
+    assert lm_eval_regex(task, reply) == want

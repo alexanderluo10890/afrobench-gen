@@ -28,6 +28,8 @@ PATTERNS = {
     "belebele": [f"data/{c}.jsonl" for c in langs.TASK_LANGS["belebele"]],
     "sib": [f"data/{c}/test.tsv" for c in langs.TASK_LANGS["sib"]],
     "flores": [f"devtest/{f}.jsonl" for f in _FLORES_FILES],
+    "globalpiqa": [f"data/nonparallel_{l}.tsv" for l in langs.TASK_LANGS["globalpiqa"]],
+    "mmluprox": [f"{l}/test-*.parquet" for l in langs.TASK_LANGS["mmluprox"]],
 }
 
 

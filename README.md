@@ -23,6 +23,27 @@ Language lists are in `afbgen/langs.py`. Each task average is the mean over **al
 languages, English and French included where listed. FLORES is the mean of 48 directions.
 Overall is the mean of the 7 task averages.
 
+## Extra benchmarks (not on the card)
+
+Since 2.1.0 the harness also runs **Global-PIQA** (`mrlbenchmarks/global-piqa-nonparallel`,
+136 languages x 100 items, 2 options) and **MMLU-ProX-Lite** (`li-lab/MMLU-ProX-Lite`,
+29 languages x 588 questions, up to 10 options). The card authors' note does not cover them.
+**These settings are our choices**, kept consistent with the card's non-math tasks:
+
+- Prompt: the card MC template, with the letter list following the number of options
+  ("(A or B)" for Global-PIQA, up to "(A, B, ..., or J)" for MMLU-ProX). Zero-shot, user message
+  only.
+- Decoding: thinking off, greedy, 1024 tokens (the card's "Other tasks" setting).
+- Answer: last standalone option letter (lm-eval `regex`) + `exact_match`, as in note 4.3.
+- Reported: the mean over **all** languages of the dataset, and the mean over its African
+  languages (`afbgen/langs.py`, `AFRICAN_SUBSET`: 21 for Global-PIQA incl. the North-African
+  Arabic varieties, 5 for MMLU-ProX: af, sw, wo, yo, zu). Per-language scores are in the CSVs.
+
+```bash
+$AFB_VENV/bin/python slurm/submit.py --run v2.1.0-extra --tasks globalpiqa,mmluprox --submit
+$AFB_VENV/bin/python -m afbgen.aggregate --run-dir $AFB_RESULTS/v2.1.0-extra   # -> summary_extra.csv
+```
+
 ## What is frozen, and how
 
 | Item | Pinned in | Enforced by |

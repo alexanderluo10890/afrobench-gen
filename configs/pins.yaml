@@ -64,3 +64,10 @@ datasets:
     # FLORES+ (card authors' note, 4.4). Gated: accept the terms on HF once, then `hf auth login`.
     repo: openlanguagedata/flores_plus
     revision: 5fec6c13f9e5a4db2f745d4ec0d7c9721ddc4f06
+  # extra benchmarks (not on the card)
+  globalpiqa:
+    repo: mrlbenchmarks/global-piqa-nonparallel
+    revision: 7394a871c9257746234b2f189bc585734862aa18
+  mmluprox:
+    repo: li-lab/MMLU-ProX-Lite
+    revision: e82aafb9460529687d3c7e51b401d8dd1dd309dd

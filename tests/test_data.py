@@ -10,11 +10,11 @@ pytestmark = pytest.mark.skipif(not os.environ.get("AFB_DATA_DIR"), reason="AFB_
 
 # items per language (card authors' note, 4.3 / 4.4)
 SIZES = {"afrimgsm": 250, "afrimmlu": 500, "afrixnli": 600, "belebele": 900, "injongo": 640, "sib": 204,
-         "flores": 1012}
+         "flores": 1012, "globalpiqa": 100, "mmluprox": 588}
 EXCEPTIONS = {("injongo", "eng"): 622, ("injongo", "wol"): 638}
 
 
-@pytest.mark.parametrize("task", langs.TASKS)
+@pytest.mark.parametrize("task", langs.TASKS + langs.EXTRA_TASKS)
 def test_sizes_and_targets(task):
     if task == "flores" and not (T.data_dir("flores") / ".afb_revision").exists():
         pytest.skip("FLORES+ not downloaded (gated)")

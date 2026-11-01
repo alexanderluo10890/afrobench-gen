@@ -2,6 +2,13 @@
 
 Every change that can move a score bumps `INFRA_VERSION` (afbgen/__init__.py) and gets a tag.
 
+## 2.1.0 — 2026-11-01 — extra benchmarks: Global-PIQA, MMLU-ProX-Lite
+- New tasks `globalpiqa` (136 languages x 100) and `mmluprox` (29 x 588), pinned in
+  configs/pins.yaml. Not on the card; settings are ours (README "Extra benchmarks"): card MC
+  template with an adapted letter list, thinking off, greedy, last-option regex + exact match.
+- `aggregate` writes `summary_extra.csv` (all-language and African-language means).
+- The 7 card benchmarks are unchanged (generation, prompts, scoring identical to 2.0.0).
+
 ## 2.0.0 — 2026-10-31 — settings of the card run
 Every setting now follows the card authors' note "How to match the
 AfriqueQwen3.5-4B-Instruct-v2 card numbers" (2026-10-29). The note showed that our 1.x numbers

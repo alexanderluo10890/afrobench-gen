@@ -21,7 +21,7 @@ from afbgen.tasklib import ANSWER_PATTERNS  # noqa: E402
 
 OUT = ROOT / "tasks" / "afrobench_gen"
 GEN = yaml.safe_load((ROOT / "configs" / "generation.yaml").read_text(encoding="utf-8"))
-LM_EVAL_TASKS = [t for t in langs.TASKS if t != "afrimgsm"]
+LM_EVAL_TASKS = [t for t in langs.TASKS + langs.EXTRA_TASKS if t != "afrimgsm"]
 
 
 class Fn(str):
@@ -42,7 +42,7 @@ def mc_spec(task):
                     {"function": "take_first"}]}])
 
 
-SPEC = {t: mc_spec(t) for t in ["afrimmlu", "afrixnli", "belebele", "injongo", "sib"]}
+SPEC = {t: mc_spec(t) for t in ["afrimmlu", "afrixnli", "belebele", "injongo", "sib", "globalpiqa", "mmluprox"]}
 SPEC["flores"] = dict(
     text="text_translation", process="process_translation",
     filters=[{"name": "clean", "filter": [{"function": "custom", "filter_fn": Fn("filter_translation")},

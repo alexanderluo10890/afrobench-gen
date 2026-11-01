@@ -43,6 +43,9 @@ ANSWER_PATTERNS = {
     "belebele": r"(?s).*\b([A-D])\b",
     "sib": r"(?s).*\b([A-G])\b",
     "injongo": r"(?s).*\b([1-9]|[1-3][0-9]|40)\b",
+    # extra benchmarks (not on the card): same rule
+    "globalpiqa": r"(?s).*\b([A-B])\b",
+    "mmluprox": r"(?s).*\b([A-J])\b",
 }
 
 
@@ -103,6 +106,21 @@ def load_rows(task: str, lang: str) -> list[dict]:
         return [{"text": r["text"], "target": str(INJONGO_INTENTS.index(r["intent"].strip()) + 1),
                  "intent": r["intent"].strip(), "lang": lang}
                 for r in _read_jsonl(d / lang / "test.jsonl") if r["intent"].strip() in INJONGO_INTENTS]
+    if task == "globalpiqa":
+        rows = _read_tsv(d / "data" / f"nonparallel_{lang}.tsv")
+        return [{"question": r["prompt"], "options": [r["solution0"], r["solution1"]],
+                 "target": "AB"[int(r["label"])], "lang": lang} for r in rows]
+    if task == "mmluprox":
+        import pandas as pd
+
+        df = pd.concat(pd.read_parquet(f) for f in sorted((d / lang).glob("test-*.parquet")))
+        rows = []
+        for r in df.to_dict("records"):
+            opts = [r[f"option_{i}"] for i in range(10)]
+            opts = [o for o in opts if isinstance(o, str) and o not in ("", "nan")]  # missing ones are trailing
+            rows.append({"question": r["question"], "options": opts, "target": r["answer"].strip(),
+                         "category": r["category"], "lang": lang})
+        return rows
     if task == "flores":
         src, tgt = lang.split("-")
         s, t = _flores_plus(d, src), _flores_plus(d, tgt)
@@ -132,6 +150,8 @@ load_belebele = make_loader("belebele")
 load_sib = make_loader("sib")
 load_injongo = make_loader("injongo")
 load_flores = make_loader("flores")
+load_globalpiqa = make_loader("globalpiqa")
+load_mmluprox = make_loader("mmluprox")
 
 
 # --------------------------------------------------------------------------- prompts (Appendix B)
@@ -198,6 +218,29 @@ def text_translation(doc: dict) -> str:
         f"{doc['src_name']}: {doc['source']}\n"
         f"{doc['tgt_name']}:"
     )
+
+
+def _letter_list(n: int) -> str:
+    ls = list("ABCDEFGHIJ"[:n])
+    return " or ".join(ls) if n == 2 else ", ".join(ls[:-1]) + ", or " + ls[-1]
+
+
+def text_mc_generic(doc: dict) -> str:
+    """The card MC template with the letter list adapted to the number of options.
+    Used for the extra benchmarks (Global-PIQA: 2 options, MMLU-ProX: up to 10)."""
+    n = len(doc["options"])
+    opts = "\n".join(f"{'ABCDEFGHIJ'[i]}. {o}" for i, o in enumerate(doc["options"]))
+    return (
+        "Answer the multiple-choice question by replying with ONLY the letter\n"
+        f"({_letter_list(n)}) of the correct answer.\n\n"
+        f"Question: {doc['question']}\n\n"
+        f"{opts}\n\n"
+        "Answer:"
+    )
+
+
+text_globalpiqa = text_mc_generic
+text_mmluprox = text_mc_generic
 
 
 def text_math(instruction: str, question: str) -> str:

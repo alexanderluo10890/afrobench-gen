@@ -151,7 +151,7 @@ def evaluate_units(lm, task: str, lang_list: list[str], run_dir: Path, meta: dic
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--run-dir", required=True, type=Path)
-    ap.add_argument("--task", required=True, choices=langs.TASKS)
+    ap.add_argument("--task", required=True, choices=langs.TASKS + langs.EXTRA_TASKS)
     ap.add_argument("--langs", required=True,
                     help="comma-separated, e.g. eng,hau  (flores: hau_Latn-eng_Latn; afrimgsm: hau:0/2,hau:1/2)")
     ap.add_argument("--limit", type=int, default=None, help="debug only: first N docs per language")
