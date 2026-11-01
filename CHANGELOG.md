@@ -8,6 +8,9 @@ Every change that can move a score bumps `INFRA_VERSION` (afbgen/__init__.py) an
   template with an adapted letter list, thinking off, greedy, last-option regex + exact match.
 - `aggregate` writes `summary_extra.csv` (all-language and African-language means).
 - The 7 card benchmarks are unchanged (generation, prompts, scoring identical to 2.0.0).
+- **Result** (run v2.1.0-extra on Mila, generation at commit 1740d68): Global-PIQA 68.0 over 136
+  languages, 68.6 over the 21 African ones; MMLU-ProX-Lite 28.4 over 29 languages, 25.2 over
+  af/sw/wo/yo/zu. MMLU-ProX answers "A" 44.5% of the time (direct answer, thinking off).
 
 ## 2.0.0 — 2026-10-31 — settings of the card run
 Every setting now follows the card authors' note "How to match the
