@@ -97,6 +97,8 @@ def main():
     cols = [c for t, c in CARD_COLUMNS if t != "flores"] + ["FLORES xx->eng", "FLORES eng->xx"]
     wide = {}
     for (task, unit), v in prim.items():
+        if task in langs.EXTRA_TASKS:      # own table: scores_extra.csv
+            continue
         if task == "flores":
             src, tgt = unit.split("-")
             code, col = (src, "FLORES xx->eng") if tgt == "eng_Latn" else (tgt, "FLORES eng->xx")
@@ -121,6 +123,13 @@ def main():
     print(f"{'done':10s}" + "".join(f"{f'{n}/{e}':>10s}" for v, n, e in summary.values()))
     extra = [t for t in langs.EXTRA_TASKS if any(k[0] == t for k in prim)]
     if extra:
+        with open(a.run_dir / "scores_extra.csv", "w", newline="", encoding="utf-8") as f:
+            w = csv.writer(f)
+            w.writerow(["benchmark", "lang", "african", "accuracy"])
+            for t in extra:
+                for u in langs.TASK_LANGS[t]:
+                    if (t, u) in prim:
+                        w.writerow([t, u, u in langs.AFRICAN_SUBSET[t], prim[(t, u)]])
         print("\nextra benchmarks (not on the card; accuracy %):")
         with open(a.run_dir / "summary_extra.csv", "w", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
