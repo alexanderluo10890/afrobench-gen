@@ -24,6 +24,9 @@ the card's 17-26 languages per task, and lower scores on 5 tasks from different 
 - SSA-COMET encoders are pinned per checkpoint: `ssa-comet-mtl-final` is built on
   `Davlan/afro-xlmr-large-114L` (named inside model.ckpt; its hparams.yaml says 76L).
   COMET jobs requeue on crash.
+- **Result** (run v2.0.0 on Mila, generation at commit 948cb7a, FLORES scored at fa23e15):
+  AfriMGSM 50.8, AfriMMLU 46.4, AfriXNLI 63.6, Belebele 66.3, Injongo 58.6, SIB-200 81.0,
+  FLORES 62.31, **Overall 61.3** - card v2: 50.8 / 46.4 / 63.6 / 66.2 / 58.7 / 81.2 / 62.29 / 61.3.
 
 ## 1.1.0 — superseded, do not use
 1.1.0 reported FLORES with SSA-COMET-STL because that score landed near the card. According
