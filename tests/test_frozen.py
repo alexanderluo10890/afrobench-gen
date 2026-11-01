@@ -48,6 +48,9 @@ def test_pins():
     assert c["primary"] == "mtl-final"
     assert c["variants"]["mtl-final"] == {"repo": "McGill-NLP/ssa-comet-mtl-final",
                                           "revision": "4df7a3d2eda822a3c5b79e7a345261d5166207ce",
-                                          "output": "comet_mtl_final.json"}
+                                          "output": "comet_mtl_final.json",
+                                          # the encoder named inside model.ckpt (not hparams.yaml)
+                                          "encoder_repo": "Davlan/afro-xlmr-large-114L",
+                                          "encoder_revision": "3f5e27bb99b577ee1f4ada598fdc4d3497b65c6c"}
     assert p["datasets"]["flores"]["repo"] == "openlanguagedata/flores_plus"
     assert p["datasets"]["flores"]["revision"] == "5fec6c13f9e5a4db2f745d4ec0d7c9721ddc4f06"

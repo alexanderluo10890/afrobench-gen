@@ -11,21 +11,26 @@ comet:
   # 1.1.0 wrongly reported ssa-comet-stl; mtl/stl stay available as diagnostics only.
   primary: mtl-final
   variants:
+    # encoder = the one named INSIDE model.ckpt (COMET uses that, not hparams.yaml);
+    # it is downloaded so scoring works offline.
     mtl-final:
       repo: McGill-NLP/ssa-comet-mtl-final
       revision: 4df7a3d2eda822a3c5b79e7a345261d5166207ce
       output: comet_mtl_final.json
+      encoder_repo: Davlan/afro-xlmr-large-114L        # hparams.yaml says 76L; the ckpt says 114L
+      encoder_revision: 3f5e27bb99b577ee1f4ada598fdc4d3497b65c6c
     mtl:
       repo: McGill-NLP/ssa-comet-mtl
       revision: 6e64e0a56ce69524c67f304b092725687a362ef8
       output: comet.json
+      encoder_repo: Davlan/afro-xlmr-large-76L
+      encoder_revision: 14a5ee38911f7f9992cf7a1c5fcd1588d9d14319
     stl:
       repo: McGill-NLP/ssa-comet-stl
       revision: cd62867ed8fe47527060e6e36662f786d6b74cf7
       output: comet_stl.json
-  # encoder all three checkpoints are built on (downloaded so scoring works offline)
-  encoder_repo: Davlan/afro-xlmr-large-76L
-  encoder_revision: 14a5ee38911f7f9992cf7a1c5fcd1588d9d14319
+      encoder_repo: Davlan/afro-xlmr-large-76L
+      encoder_revision: 14a5ee38911f7f9992cf7a1c5fcd1588d9d14319
 
 lm_eval:
   repo: https://github.com/EleutherAI/lm-evaluation-harness

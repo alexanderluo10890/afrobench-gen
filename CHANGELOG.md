@@ -21,6 +21,9 @@ the card's 17-26 languages per task, and lower scores on 5 tasks from different 
   cleaning = after the last `</think>`, before the first blank line, no prefix removal;
   **SSA-COMET `ssa-comet-mtl-final`** (@ 4df7a3d), empty segments skipped.
 - `prepare` now also downloads new languages for datasets already on disk.
+- SSA-COMET encoders are pinned per checkpoint: `ssa-comet-mtl-final` is built on
+  `Davlan/afro-xlmr-large-114L` (named inside model.ckpt; its hparams.yaml says 76L).
+  COMET jobs requeue on crash.
 
 ## 1.1.0 — superseded, do not use
 1.1.0 reported FLORES with SSA-COMET-STL because that score landed near the card. According
