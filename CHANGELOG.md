@@ -23,6 +23,8 @@ Every change that can move a score bumps `INFRA_VERSION` (afbgen/__init__.py) an
   the network copy if the tar is missing or was packed from another lock file). Importing
   transformers opens every file of ~400 model folders; on the shared disk some opens failed on
   compute nodes (FileNotFoundError for files that exist), and 12 of ~360 jobs failed 7 times.
+- submit.py skips units that are already queued or running (Slurm job comment
+  `afb|<run>|<task>|<units>`), so a resubmission never starts a second writer on the same files.
 - No change to prompts, decoding or scoring.
 
 ## 2.1.0 — 2026-11-01 — extra benchmarks: Global-PIQA, MMLU-ProX-Lite

@@ -24,13 +24,27 @@ sys.path.insert(0, str(REPO))
 from afbgen import langs  # noqa: E402
 
 
-def shards(task: str, cfg: dict, run_dir: Path, smoke: bool) -> list[list[str]]:
+def queued_units() -> set[tuple[str, str, str]]:
+    """(run, task, unit) of my pending or running jobs, read from the Slurm comment that
+    submit.py sets. Resubmitting one of these would start a second writer on the same files."""
+    out = subprocess.run(["squeue", "--me", "-h", "-o", "%k"], capture_output=True, text=True).stdout
+    busy = set()
+    for line in out.splitlines():
+        if line.startswith("afb|"):
+            _, run, task, units = line.strip().split("|", 3)
+            busy |= {(run, task, u) for u in units.split(",")}
+    return busy
+
+
+def shards(task: str, cfg: dict, run_dir: Path, smoke: bool, busy: set) -> list[list[str]]:
     todo = [l for l in langs.TASK_LANGS[task] if not (run_dir / task / l / "results.json").exists()]
     if task == "afrimgsm":
         # one job per (language, question range); a smoke test runs everything in one job
         k = 1 if smoke else cfg["parts_per_language"]
         units = [f"{l}:{p}/{k}" for l in todo for p in range(k)]
-        return [units] if smoke else [[u] for u in units]
+        units = [u for u in units if (run_dir.name, task, u) not in busy]
+        return ([units] if units else []) if smoke else [[u] for u in units]
+    todo = [l for l in todo if (run_dir.name, task, l) not in busy]
     per_job = 99 if smoke else cfg["languages_per_job"]
     return [todo[i:i + per_job] for i in range(0, len(todo), per_job)]
 
@@ -73,10 +87,14 @@ def main():
         sys.exit(f"unknown model {a.model}")
 
     flores_ids, n = [], 0
+    busy = queued_units()
+    if busy:
+        print(f"skipping {sum(r == run_dir.name for r, _, _ in busy)} units of this run that are already queued or running")
     for task in a.tasks.split(","):
-        for i, group in enumerate(shards(task, cfg[task], run_dir, a.limit is not None)):
+        for i, group in enumerate(shards(task, cfg[task], run_dir, a.limit is not None, busy)):
             name = f"afb-{task}-{i}"
             jid = sbatch(["sbatch", *cluster_args, f"--job-name={name}", f"--output={logs}/{name}.out",
+                          f"--comment=afb|{run_dir.name}|{task}|{','.join(group)}",
                           str(REPO / "slurm" / "eval.sbatch"), str(run_dir if a.limit is None else Path(os.environ["AFB_RESULTS"]) / a.run), task, ",".join(group), str(REPO)],
                          a.submit)
             n += 1
