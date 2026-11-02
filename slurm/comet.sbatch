@@ -12,6 +12,8 @@ set -uo pipefail
 RUN_DIR=$1; REPO=${2:-$SLURM_SUBMIT_DIR}; VARIANT=${3:-}
 cd "$REPO"
 source slurm/env.sh
+# import from the node-local disk, not the shared network disk (slurm/pack_env.sh)
+source slurm/local_env.sh venv-comet
 export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONDONTWRITEBYTECODE=1
 MAX_RESTARTS=${AFB_MAX_RESTARTS:-6}
 echo "== $(date -Is) job=$SLURM_JOB_ID restart=${SLURM_RESTART_COUNT:-0} host=$(hostname)"

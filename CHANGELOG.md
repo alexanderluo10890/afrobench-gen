@@ -18,6 +18,11 @@ Every change that can move a score bumps `INFRA_VERSION` (afbgen/__init__.py) an
   unaffected. lm-eval tasks already avoided a double BOS.
 - Per-model context cap (`max_model_len` in models.yaml): tiny-aya-earth has 8192 tokens, so its
   AfriMGSM runs at 8192 with max new tokens = min(10240, 8192 - prompt length).
+- Jobs import Python from the node-local disk: `slurm/pack_env.sh` packs each environment into
+  one tar file; `slurm/local_env.sh` extracts it to `$SLURM_TMPDIR` at job start (falls back to
+  the network copy if the tar is missing or was packed from another lock file). Importing
+  transformers opens every file of ~400 model folders; on the shared disk some opens failed on
+  compute nodes (FileNotFoundError for files that exist), and 12 of ~360 jobs failed 7 times.
 - No change to prompts, decoding or scoring.
 
 ## 2.1.0 — 2026-11-01 — extra benchmarks: Global-PIQA, MMLU-ProX-Lite

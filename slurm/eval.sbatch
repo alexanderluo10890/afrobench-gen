@@ -13,6 +13,8 @@ set -uo pipefail
 RUN_DIR=$1; TASK=$2; LANGS=$3; REPO=${4:-$SLURM_SUBMIT_DIR}
 cd "$REPO"
 source slurm/env.sh
+# import from the node-local disk, not the shared network disk (slurm/pack_env.sh)
+source slurm/local_env.sh venv
 export HF_HUB_OFFLINE=1 HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1
 MAX_RESTARTS=${AFB_MAX_RESTARTS:-6}
 
