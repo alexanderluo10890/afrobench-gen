@@ -35,6 +35,7 @@ sunflower-qwen3.5-9b:                  # current weights (2026-09-30), uploaded 
 sunflower-qwen3.5-9b-jul:               # the weights that were current at the card run (August 2026)
   repo: Sunbird/Sunflower-Qwen3.5-9B
   revision: d3864b4781e6bbecc23c323a6d54a7cccd79ce7c   # 2026-07-20 head; weights uploaded 2026-07-17
+  local_dir: Sunflower-Qwen3.5-9B-jul2026              # own folder: same repo as sunflower-qwen3.5-9b
   language_model_only: true
   card: {AfriMGSM: 19.9, AfriMMLU: 41.8, AfriXNLI: 50.5, Belebele: 62.7, Injongo: 55.0, SIB-200: 78.3, FLORES: 62.3, Overall: 52.9}
 

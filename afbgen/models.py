@@ -52,7 +52,9 @@ def _data_root() -> Path:
 
 
 def model_dir(name: str) -> Path:
-    return _data_root() / "models" / get(name)["repo"].split("/")[-1]
+    """Download folder. Entries that share a repo (e.g. two revisions) must set `local_dir`."""
+    m = get(name)
+    return _data_root() / "models" / (m.get("local_dir") or m["repo"].split("/")[-1])
 
 
 def tokenizer_path(name: str) -> Path:

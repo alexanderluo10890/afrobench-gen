@@ -43,3 +43,10 @@ def test_apply_tokenizer_fix(tmp_path, monkeypatch):
     assert (fixed / "tokenizer.json").exists()
     # models without a fix use their own directory
     assert models.tokenizer_path("qwen3.5-4b") == models.model_dir("qwen3.5-4b")
+
+
+def test_every_model_has_its_own_folder(tmp_path, monkeypatch):
+    """Two revisions of one repo in one folder would mix their weights."""
+    monkeypatch.setenv("AFB_DATA_DIR", str(tmp_path))
+    dirs = [models.model_dir(n) for n in models.registry()]
+    assert len(dirs) == len(set(dirs))
