@@ -51,14 +51,17 @@ def _load_done(path: Path) -> dict[int, dict]:
     return done
 
 
-def build_llm(model_dir: Path):
+def build_llm(model_name: str):
     from vllm import LLM
+
+    from afbgen import models
 
     gen = config.load("generation")
     eng = gen["engine"]
-    return LLM(model=str(model_dir), dtype=eng["dtype"], max_model_len=gen["math"]["max_model_len"],
-               gpu_memory_utilization=eng["gpu_memory_utilization"], seed=eng["seed"],
-               language_model_only=eng["language_model_only"])
+    extra = {"language_model_only": True} if models.get(model_name).get("language_model_only") else {}
+    return LLM(model=str(models.model_dir(model_name)), tokenizer=str(models.tokenizer_path(model_name)),
+               dtype=eng["dtype"], max_model_len=gen["math"]["max_model_len"],
+               gpu_memory_utilization=eng["gpu_memory_utilization"], seed=eng["seed"], **extra)
 
 
 def run_unit(llm, lang: str, p: int, k: int, run_dir: Path, meta: dict, limit: int | None = None):

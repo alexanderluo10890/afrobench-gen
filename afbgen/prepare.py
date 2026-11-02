@@ -16,7 +16,7 @@ from pathlib import Path
 
 from huggingface_hub import snapshot_download
 
-from afbgen import config, langs
+from afbgen import config, langs, models
 
 _FLORES_FILES = sorted({langs.FLORES_PLUS_FILE[c] for c in langs.FLORES_LANGS + ["eng_Latn"]})
 
@@ -61,9 +61,25 @@ def prepare_data(pins):
         _snapshot(pin["repo"], pin["revision"], data_root() / "datasets" / task, "dataset", PATTERNS[task])
 
 
-def prepare_model(pins):
-    m = pins["model"]
-    _snapshot(m["repo"], m["revision"], model_dir(pins))
+def prepare_model(pins, names=(models.DEFAULT,)):
+    """Download each model at its pinned revision, fix its tokenizer if needed, check the tokenizer."""
+    for name in names:
+        m = models.get(name)
+        marker = models.model_dir(name) / ".afb_revision"
+        if not (marker.exists() and marker.read_text().strip() == m["revision"]):
+            print(f"[get ] {m['repo']}@{m['revision'][:10]} -> {models.model_dir(name)}")
+            snapshot_download(repo_id=m["repo"], revision=m["revision"], local_dir=models.model_dir(name),
+                              ignore_patterns=["*.gguf", "original/*", "*.pth", "*.msgpack", "*.h5"])
+            marker.write_text(m["revision"])
+        else:
+            print(f"[skip] {m['repo']}@{m['revision'][:10]} already in {models.model_dir(name)}")
+        models.apply_tokenizer_fix(name)
+        models.describe(name)
+        problems = models.check_tokenizer(name)
+        print(f"[{'ok  ' if not problems else 'FAIL'}] {name}: tokenizer "
+              + ("matches tokenizer.json" if not problems else "DOES NOT match tokenizer.json"))
+        for x in problems:
+            print("        " + x)
 
 
 def prepare_comet(pins):
@@ -94,10 +110,6 @@ def _cache_encoder(repo: str, rev: str):
     print(f"[ok  ] encoder {repo}@{rev[:10]} in HF cache")
 
 
-def model_dir(pins) -> Path:
-    return data_root() / "models" / pins["model"]["repo"].split("/")[-1]
-
-
 def verify(pins):
     """Load every (task, lang) once and print sizes; fails loudly on missing files."""
     from afbgen import tasklib
@@ -113,12 +125,15 @@ def verify(pins):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--only", choices=["data", "model", "comet", "verify"])
+    ap.add_argument("--model", default=models.DEFAULT,
+                    help="comma-separated names from configs/models.yaml, or 'all' (used by the model step)")
     a = ap.parse_args()
     pins = config.load("pins")
     steps = {"data": prepare_data, "model": prepare_model, "comet": prepare_comet, "verify": verify}
+    names = list(models.registry()) if a.model == "all" else a.model.split(",")
     for name, fn in steps.items():
         if a.only in (None, name):
-            fn(pins)
+            fn(pins, names) if name == "model" else fn(pins)
 
 
 if __name__ == "__main__":

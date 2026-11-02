@@ -93,6 +93,11 @@ def main():
         w.writerows(rows)
 
     prim, summary = summarize(rows)
+    # the model card row of the evaluated model (configs/models.yaml, recorded in run.json)
+    run_json = a.run_dir / "run.json"
+    model = json.loads(run_json.read_text(encoding="utf-8")).get("model", {}) if run_json.exists() else {}
+    card = (model.get("card") or {}) if model else CARD
+    print(f"model: {model.get('name', 'afriqueqwen-v2')} ({model.get('repo', 'McGill-NLP/AfriqueQwen3.5-4B-Instruct-v2')})")
     # wide table keyed by FLORES-200 code
     cols = [c for t, c in CARD_COLUMNS if t != "flores"] + ["FLORES xx->eng", "FLORES eng->xx"]
     wide = {}
@@ -113,13 +118,14 @@ def main():
 
     with open(a.run_dir / "summary.csv", "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
-        w.writerow(["benchmark", "score", "card_v2", "units_done", "units_expected"])
+        w.writerow(["benchmark", "score", "model_card", "units_done", "units_expected"])
         for k, (v, n, e) in summary.items():
-            w.writerow([k, "" if v is None else v, CARD[k], n, e])
+            w.writerow([k, "" if v is None else v, "" if card.get(k) is None else card[k], n, e])
 
     print(f"{'':10s}" + "".join(f"{k:>10s}" for k in summary))
     print(f"{'ours':10s}" + "".join(f"{'…' if v is None else f'{v:.1f}':>10s}" for v, n, e in summary.values()))
-    print(f"{'card v2':10s}" + "".join(f"{CARD[k]:10.1f}" for k in summary))
+    print(f"{'card':10s}" + "".join(f"{card[k]:10.1f}" if card.get(k) is not None else f"{'—':>10s}"
+                                    for k in summary))
     print(f"{'done':10s}" + "".join(f"{f'{n}/{e}':>10s}" for v, n, e in summary.values()))
     extra = [t for t in langs.EXTRA_TASKS if any(k[0] == t for k in prim)]
     if extra:

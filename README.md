@@ -44,6 +44,19 @@ $AFB_VENV/bin/python slurm/submit.py --run v2.1.0-extra --tasks globalpiqa,mmlup
 $AFB_VENV/bin/python -m afbgen.aggregate --run-dir $AFB_RESULTS/v2.1.0-extra   # -> summary_extra.csv
 ```
 
+## Baselines (other models)
+
+`configs/models.yaml` lists every model with a pinned revision. All models use the same
+benchmark settings. Before a run, the harness checks that the tokenizer vLLM loads gives the same
+token ids as the repository's `tokenizer.json` (`afbgen/models.py`); tiny-aya needs a fix for
+that under transformers v5 (issue #49176), which `tokenizer_fix: tokenizer_json` applies.
+
+```bash
+$AFB_VENV/bin/python -m afbgen.prepare --only model --model qwen3.5-4b,gemma-3-4b-it   # download + check
+$AFB_VENV/bin/python slurm/submit.py --model qwen3.5-4b --run base-qwen3.5-4b --submit
+$AFB_VENV/bin/python -m afbgen.aggregate --run-dir $AFB_RESULTS/base-qwen3.5-4b      # vs its card row
+```
+
 ## What is frozen, and how
 
 | Item | Pinned in | Enforced by |

@@ -2,6 +2,18 @@
 
 Every change that can move a score bumps `INFRA_VERSION` (afbgen/__init__.py) and gets a tag.
 
+## 2.2.0 — 2026-11-02 — baselines: several models, tokenizer check
+- `configs/models.yaml`: pinned registry of the evaluated models (AfriqueQwen3.5-4B-Instruct-v2
+  and the baselines Qwen3.5-4B/9B, Sunflower-Qwen3.5-9B, Gemma-3-4B-it, tiny-aya-earth,
+  tiny-aya-l2-thinker) with the card's per-benchmark numbers where the card has them.
+  `--model` in prepare / run_eval / submit; every model uses the same benchmark settings.
+- Tokenizer check before every run (`afbgen/models.py`): the tokenizer vLLM loads must give
+  the same ids as the repo's tokenizer.json on digits and African scripts. tiny-aya under
+  transformers v5 fails it (CohereTokenizer splits digits one by one; issue #49176); its
+  tokenizer is loaded from tokenizer.json as PreTrainedTokenizerFast (`tokenizer_fix`).
+- run.json records the model; a run directory cannot mix models.
+- No change to prompts, decoding or scoring.
+
 ## 2.1.0 — 2026-11-01 — extra benchmarks: Global-PIQA, MMLU-ProX-Lite
 - New tasks `globalpiqa` (136 languages x 100) and `mmluprox` (29 x 588), pinned in
   configs/pins.yaml. Not on the card; settings are ours (README "Extra benchmarks"): card MC

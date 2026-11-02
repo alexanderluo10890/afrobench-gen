@@ -44,7 +44,7 @@ requeue () {
 }
 trap requeue USR1
 
-"$AFB_VENV/bin/python" -u -m afbgen.run_eval --run-dir "$RUN_DIR" --task "$TASK" --langs "$LANGS" ${AFB_LIMIT:+--limit $AFB_LIMIT} &
+"$AFB_VENV/bin/python" -u -m afbgen.run_eval --run-dir "$RUN_DIR" --task "$TASK" --langs "$LANGS" ${AFB_LIMIT:+--limit $AFB_LIMIT} ${AFB_MODEL:+--model $AFB_MODEL} &
 PID=$!
 wait "$PID"; RC=$?
 # `wait` returns early when the trap fires; wait again for the python process to exit.

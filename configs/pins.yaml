@@ -2,9 +2,7 @@
 # Changing anything here changes the benchmark: bump INFRA_VERSION in afbgen/__init__.py
 # and note it in CHANGELOG.md.
 
-model:
-  repo: McGill-NLP/AfriqueQwen3.5-4B-Instruct-v2
-  revision: d9c3c6a67ea313f41cc7b242ab732d8b1bbdeab7
+# Models (incl. AfriqueQwen3.5-4B-Instruct-v2 and the baselines): configs/models.yaml
 
 comet:
   # Reported FLORES metric (card authors' note, 4.4): SSA-COMET with ssa-comet-mtl-final.

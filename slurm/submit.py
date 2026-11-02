@@ -49,6 +49,8 @@ def main():
     ap.add_argument("--tasks", default=",".join(langs.TASKS))
     ap.add_argument("--submit", action="store_true")
     ap.add_argument("--limit", type=int, help="smoke test: first N docs per language, results in <run>-limitN")
+    ap.add_argument("--model", default="afriqueqwen-v2", help="name in configs/models.yaml")
+    ap.add_argument("--math-parts", type=int, help="AfriMGSM jobs per language (default: configs/shards.yaml)")
     a = ap.parse_args()
 
     if "AFB_RESULTS" not in os.environ:
@@ -60,10 +62,15 @@ def main():
     run_dir = Path(os.environ["AFB_RESULTS"]) / (a.run if a.limit is None else f"{a.run}-limit{a.limit}")
     if a.limit is not None:
         os.environ["AFB_LIMIT"] = str(a.limit)  # sbatch exports the environment to the job
+    os.environ["AFB_MODEL"] = a.model             # read by eval.sbatch
     logs = Path(os.environ["AFB_ROOT"]) / "logs" / run_dir.name
     logs.mkdir(parents=True, exist_ok=True)
     cluster_args = os.environ["AFB_SBATCH_ARGS"].split()
     cfg = yaml.safe_load((REPO / "configs" / "shards.yaml").read_text())
+    if a.math_parts:
+        cfg["afrimgsm"]["parts_per_language"] = a.math_parts
+    if a.model not in yaml.safe_load((REPO / "configs" / "models.yaml").read_text()):
+        sys.exit(f"unknown model {a.model}")
 
     flores_ids, n = [], 0
     for task in a.tasks.split(","):

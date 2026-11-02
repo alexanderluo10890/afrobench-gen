@@ -21,7 +21,7 @@ import sys
 import time
 from pathlib import Path
 
-from afbgen import INFRA_VERSION, config, langs
+from afbgen import INFRA_VERSION, config, langs, models
 
 # --------------------------------------------------------------------------- provenance
 
@@ -51,12 +51,13 @@ def provenance(allow_dirty: bool) -> dict:
             "generation": config.load("generation"), "math_instructions": config.load("math_instructions")}
 
 
-def lock_run_manifest(run_dir: Path, prov: dict):
-    """All shards of a run must use identical code/config. First shard writes run.json."""
+def lock_run_manifest(run_dir: Path, prov: dict, model_name: str):
+    """All shards of a run must use identical code/config and the same model. First shard writes run.json."""
     run_dir.mkdir(parents=True, exist_ok=True)
     path = run_dir / "run.json"
     key = {k: prov[k] for k in ("infra_version", "pins", "generation", "math_instructions")}
     key["commit"] = prov["git"]["commit"]
+    key["model"] = {"name": model_name, **models.get(model_name)}
     try:
         with open(path, "x", encoding="utf-8") as f:
             json.dump(key, f, indent=1)
@@ -75,30 +76,37 @@ def check_gpu(allow_any: bool) -> str:
     return name
 
 
-def check_model(pins: dict, model_dir: Path):
-    marker = model_dir / ".afb_revision"
-    if not marker.exists() or marker.read_text().strip() != pins["model"]["revision"]:
-        sys.exit(f"{model_dir} is not the pinned revision; run `python -m afbgen.prepare --only model`")
+def check_model(model_name: str):
+    """Pinned revision on disk, and a tokenizer that matches the repo's tokenizer.json."""
+    marker = models.model_dir(model_name) / ".afb_revision"
+    if not marker.exists() or marker.read_text().strip() != models.get(model_name)["revision"]:
+        sys.exit(f"{models.model_dir(model_name)} is not the pinned revision; "
+                 f"run `python -m afbgen.prepare --only model --model {model_name}`")
+    problems = models.check_tokenizer(model_name)
+    if problems:
+        sys.exit(f"tokenizer check failed for {model_name}:\n  " + "\n  ".join(problems))
 
 
 # --------------------------------------------------------------------------- model
 
-def build_lm(model_dir: Path):
-    """lm-eval vLLM model for the six non-math tasks (thinking off, greedy)."""
+def build_lm(model_name: str):
+    """lm-eval vLLM model for the non-math tasks (thinking off, greedy)."""
     from lm_eval.models.vllm_causallms import VLLM
 
     gen = config.load("generation")
     mode, eng = gen["other"], gen["engine"]
+    extra = {"language_model_only": True} if models.get(model_name).get("language_model_only") else {}
     return VLLM(
-        pretrained=str(model_dir),
+        pretrained=str(models.model_dir(model_name)),
+        tokenizer=str(models.tokenizer_path(model_name)),
         dtype=eng["dtype"],
         max_model_len=mode["max_model_len"],
         max_gen_toks=mode["sampling"]["max_gen_toks"],
         batch_size=eng["chunk_size"],
         seed=eng["seed"],
         gpu_memory_utilization=eng["gpu_memory_utilization"],
-        language_model_only=eng["language_model_only"],
         enable_thinking=mode["enable_thinking"],
+        **extra,
     )
 
 
@@ -155,6 +163,7 @@ def main():
     ap.add_argument("--langs", required=True,
                     help="comma-separated, e.g. eng,hau  (flores: hau_Latn-eng_Latn; afrimgsm: hau:0/2,hau:1/2)")
     ap.add_argument("--limit", type=int, default=None, help="debug only: first N docs per language")
+    ap.add_argument("--model", default=models.DEFAULT, help="name in configs/models.yaml")
     ap.add_argument("--allow-dirty", action="store_true")
     ap.add_argument("--allow-any-gpu", action="store_true", help="debug only")
     a = ap.parse_args()
@@ -166,25 +175,23 @@ def main():
     run_dir = a.run_dir if a.limit is None else a.run_dir.with_name(a.run_dir.name + f"-limit{a.limit}")
 
     prov = provenance(a.allow_dirty)
-    lock_run_manifest(run_dir, prov)
-    pins = prov["pins"]
-    from afbgen.prepare import model_dir
-    mdir = model_dir(pins)
-    check_model(pins, mdir)
+    models.get(a.model)
+    lock_run_manifest(run_dir, prov, a.model)
+    check_model(a.model)
     gpu = check_gpu(a.allow_any_gpu)
     meta = {"gpu": gpu, "host": socket.gethostname(), "slurm_job_id": os.environ.get("SLURM_JOB_ID"),
             "infra_version": INFRA_VERSION, "git": prov["git"], "packages": prov["packages"],
-            "model": pins["model"]}
+            "model": {"name": a.model, **models.get(a.model)}}
     print(json.dumps(meta, indent=1), flush=True)
     if a.task == "afrimgsm":
         from afbgen import math_runner
 
-        llm = math_runner.build_llm(mdir)
+        llm = math_runner.build_llm(a.model)
         for spec in lang_list:
             lang, p, k = math_runner.parse_unit(spec)
             math_runner.run_unit(llm, lang, p, k, run_dir, meta, limit=a.limit)
         return
-    lm = build_lm(mdir)
+    lm = build_lm(a.model)
     evaluate_units(lm, a.task, lang_list, run_dir, meta, limit=a.limit)
 
 
