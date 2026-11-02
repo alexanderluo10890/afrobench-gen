@@ -59,9 +59,13 @@ def build_llm(model_name: str):
     gen = config.load("generation")
     eng = gen["engine"]
     extra = {"language_model_only": True} if models.get(model_name).get("language_model_only") else {}
-    return LLM(model=str(models.model_dir(model_name)), tokenizer=str(models.tokenizer_path(model_name)),
-               dtype=eng["dtype"], max_model_len=gen["math"]["max_model_len"],
-               gpu_memory_utilization=eng["gpu_memory_utilization"], seed=eng["seed"], **extra)
+    # a model with a shorter context (tiny-aya: 8192) runs at its own limit (configs/models.yaml)
+    mlen = min(gen["math"]["max_model_len"], models.get(model_name).get("max_model_len") or 10**9)
+    llm = LLM(model=str(models.model_dir(model_name)), tokenizer=str(models.tokenizer_path(model_name)),
+              dtype=eng["dtype"], max_model_len=mlen,
+              gpu_memory_utilization=eng["gpu_memory_utilization"], seed=eng["seed"], **extra)
+    llm.afb_max_model_len = mlen
+    return llm
 
 
 def run_unit(llm, lang: str, p: int, k: int, run_dir: Path, meta: dict, limit: int | None = None):
@@ -79,18 +83,26 @@ def run_unit(llm, lang: str, p: int, k: int, run_dir: Path, meta: dict, limit: i
 
     tok = llm.get_tokenizer()
     instruction = config.math_instruction(lang)
-    params = SamplingParams(n=m["n_samples"], **m["sampling"])
+    mlen = getattr(llm, "afb_max_model_len", m["max_model_len"])
     t0 = time.time()
     for start in range(0, len(todo), m["questions_per_chunk"]):
         ids = todo[start:start + m["questions_per_chunk"]]
         prompts = [tok.apply_chat_template([{"role": "user", "content": tasklib.text_math(instruction, docs[i]["question"])}],
                                            tokenize=False, add_generation_prompt=True,
                                            enable_thinking=m["enable_thinking"]) for i in ids]
-        outs = llm.generate(prompts, params, use_tqdm=False)
+        # Token ids without added special tokens: the chat template already writes the BOS
+        # token where a model has one (Gemma, tiny-aya); a text prompt would get a second BOS.
+        prompt_ids = [tok.encode(pr, add_special_tokens=False) for pr in prompts]
+        # max new tokens = the card setting, or less if the model's context is shorter
+        params = [SamplingParams(n=m["n_samples"], **{**m["sampling"],
+                                                     "max_tokens": min(m["sampling"]["max_tokens"], mlen - len(t))})
+                  for t in prompt_ids]
+        outs = llm.generate([{"prompt_token_ids": t} for t in prompt_ids], params, use_tqdm=False)
         with open(path, "a", encoding="utf-8") as f:
-            for i, prompt, o in zip(ids, prompts, outs):
+            for i, prompt, t, sp, o in zip(ids, prompts, prompt_ids, params, outs):
                 texts = [s.text for s in o.outputs]
                 rec = {"doc_id": i, "target": docs[i]["target"], "prompt": prompt,
+                       "prompt_tokens": len(t), "max_tokens": sp.max_tokens,
                        "outputs": texts,
                        "finish_reasons": [s.finish_reason for s in o.outputs],
                        "num_tokens": [len(s.token_ids) for s in o.outputs],

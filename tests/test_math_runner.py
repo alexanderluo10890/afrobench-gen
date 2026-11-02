@@ -10,6 +10,10 @@ pytestmark = pytest.mark.skipif(not os.environ.get("AFB_DATA_DIR"), reason="AFB_
 
 
 class FakeTok:
+    def encode(self, text, add_special_tokens=True):
+        assert add_special_tokens is False
+        return [0] * len(text.split())
+
     def apply_chat_template(self, messages, tokenize, add_generation_prompt, enable_thinking):
         assert [m["role"] for m in messages] == ["user"] and enable_thinking and add_generation_prompt
         return "<|im_start|>user\n" + messages[0]["content"] + "<|im_end|>\n<|im_start|>assistant\n<think>\n"
@@ -23,13 +27,14 @@ class FakeLLM:
 
     def generate(self, prompts, params, use_tqdm=False):
         FakeLLM.calls += 1
-        assert params.n == 16 and params.seed == 42
+        assert len(params) == len(prompts) and all("prompt_token_ids" in p for p in prompts)
+        assert all(sp.n == 16 and sp.seed == 42 and sp.max_tokens == 10240 for sp in params)
         outs = []
-        for p in prompts:
+        for p, sp in zip(prompts, params):
             sample = lambda j: types.SimpleNamespace(  # noqa: E731  half right, half wrong
                 text=f"<think>...</think> \\boxed{{{'GOLD' if j % 2 == 0 else '-1'}}}", finish_reason="stop",
                 token_ids=[0] * 10)
-            outs.append(types.SimpleNamespace(outputs=[sample(j) for j in range(params.n)]))
+            outs.append(types.SimpleNamespace(outputs=[sample(j) for j in range(sp.n)]))
         return outs
 
 

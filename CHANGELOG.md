@@ -12,6 +12,12 @@ Every change that can move a score bumps `INFRA_VERSION` (afbgen/__init__.py) an
   transformers v5 fails it (CohereTokenizer splits digits one by one; issue #49176); its
   tokenizer is loaded from tokenizer.json as PreTrainedTokenizerFast (`tokenizer_fix`).
 - run.json records the model; a run directory cannot mix models.
+- AfriMGSM runner passes token ids tokenized WITHOUT added special tokens: the chat template
+  already writes the BOS token for models that have one (Gemma, tiny-aya); a text prompt got a
+  second BOS from vLLM. Qwen-family models have no BOS, so AfriqueQwen v2.0.0 results are
+  unaffected. lm-eval tasks already avoided a double BOS.
+- Per-model context cap (`max_model_len` in models.yaml): tiny-aya-earth has 8192 tokens, so its
+  AfriMGSM runs at 8192 with max new tokens = min(10240, 8192 - prompt length).
 - No change to prompts, decoding or scoring.
 
 ## 2.1.0 — 2026-11-01 — extra benchmarks: Global-PIQA, MMLU-ProX-Lite

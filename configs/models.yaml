@@ -42,7 +42,8 @@ tiny-aya-earth:
   repo: CohereLabs/tiny-aya-earth         # gated (auto)
   revision: 0624fafbe200f930b89566fc4ec4da314ba48d89
   language_model_only: false             # text-only checkpoint
-  tokenizer_fix: tokenizer_json
+  tokenizer_fix: tokenizer_json          # already fixed upstream at this revision (2026-09-30); kept as a guard
+  max_model_len: 8192                    # model limit; AfriMGSM uses 8192 instead of 12288, new tokens capped to fit
   card: {AfriMGSM: 19.6, AfriMMLU: 41.3, AfriXNLI: 55.4, Belebele: 54.4, Injongo: 17.4, SIB-200: 69.5, FLORES: 42.0, Overall: 42.8}
 
 tiny-aya-l2-thinker:                     # candidate for "Aya thinker v2" (updated 2026-10-30) - to confirm
