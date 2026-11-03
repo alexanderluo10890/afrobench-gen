@@ -38,7 +38,7 @@ def test_math_instructions():
 def test_language_lists():
     n = {t: len(v) for t, v in langs.TASK_LANGS.items()}
     assert n == {"afrimgsm": 18, "afrimmlu": 18, "afrixnli": 18, "injongo": 17, "belebele": 25, "sib": 26,
-                 "flores": 48, "globalpiqa": 136, "mmluprox": 29}
+                 "flores": 48, "globalpiqa": 136, "mmluprox": 29, "mhumaneval": 55}
     assert all(c in langs.FLORES_NAMES for c in langs.FLORES_LANGS)
 
 

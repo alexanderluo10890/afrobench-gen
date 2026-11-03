@@ -10,7 +10,7 @@ pytestmark = pytest.mark.skipif(not os.environ.get("AFB_DATA_DIR"), reason="AFB_
 
 # items per language (card authors' note, 4.3 / 4.4)
 SIZES = {"afrimgsm": 250, "afrimmlu": 500, "afrixnli": 600, "belebele": 900, "injongo": 640, "sib": 204,
-         "flores": 1012, "globalpiqa": 100, "mmluprox": 588}
+         "flores": 1012, "globalpiqa": 100, "mmluprox": 588, "mhumaneval": 164}
 EXCEPTIONS = {("injongo", "eng"): 622, ("injongo", "wol"): 638}
 
 
@@ -21,4 +21,4 @@ def test_sizes_and_targets(task):
     for lang in langs.TASK_LANGS[task]:
         rows = T.load_rows(task, lang)
         assert len(rows) == EXCEPTIONS.get((task, lang), SIZES[task]), (lang, len(rows))
-        assert all(r["target"] for r in rows)
+        assert all(r["target"] for r in rows) or task == "mhumaneval"   # scored by running tests

@@ -25,7 +25,8 @@ from afbgen import INFRA_VERSION, config, langs
 COMET = config.load("pins")["comet"]
 PRIMARY = {"afrimgsm": "acc", "flores": f"ssa_comet_{COMET['primary']}",
            **{t: "exact_match,last_option" for t in ["afrimmlu", "afrixnli", "belebele", "injongo", "sib",
-                                                     *langs.EXTRA_TASKS]}}
+                                                     "globalpiqa", "mmluprox"]},
+           "mhumaneval": "pass_at_1,code"}
 CARD_COLUMNS = [("afrimgsm", "AfriMGSM"), ("afrimmlu", "AfriMMLU"), ("afrixnli", "AfriXNLI"),
                 ("belebele", "Belebele"), ("injongo", "Injongo"), ("sib", "SIB-200"), ("flores", "FLORES")]
 CARD = {"AfriMGSM": 50.8, "AfriMMLU": 46.4, "AfriXNLI": 63.6, "Belebele": 66.2, "Injongo": 58.7,
@@ -47,7 +48,7 @@ def collect(run_dir: Path):
             versions.add((r["infra_version"], r["git"]["commit"]))
             metrics = {k: v for k, v in r["metrics"].items()
                        if "stderr" not in k and isinstance(v, (int, float)) and not isinstance(v, bool)}
-            metrics = {k: (100 * v if k.startswith(("acc", "exact_match", "truncated")) else v)
+            metrics = {k: (100 * v if k.startswith(("acc", "exact_match", "truncated", "pass_at_1")) else v)
                        for k, v in metrics.items()}
             if task == "flores":
                 for variant, v in COMET["variants"].items():
@@ -149,6 +150,11 @@ def main():
                 w.writerow(row)
                 print(f"  {t:11s} all {row[1]:6.2f} ({row[2]} langs)   African {row[3]} ({row[4]} langs)"
                       f"   done {row[5]}/{row[6]}")
+    cr = a.run_dir / "culturalriddles" / "summary.json"
+    if cr.exists():
+        s = json.loads(cr.read_text(encoding="utf-8"))
+        print(f"  culturalriddles all {s['all']['accuracy']} (coverage {s['all']['coverage']}%)   "
+              f"African {s['african']['accuracy']} (coverage {s['african']['coverage']}%)")
     if missing:
         print(f"\nmissing ({len(missing)}):", ", ".join(missing[:40]), "…" if len(missing) > 40 else "")
     print(f"\nafrobench-gen {INFRA_VERSION}; FLORES = SSA-COMET-{COMET['primary']}")

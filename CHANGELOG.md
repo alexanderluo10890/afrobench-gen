@@ -2,6 +2,22 @@
 
 Every change that can move a score bumps `INFRA_VERSION` (afbgen/__init__.py) and gets a tag.
 
+## 2.3.0 — 2026-11-03 — extra benchmarks: mHumanEval, CulturalRiddles
+Not on the card; settings agreed with Alex 2026-11-03. Card benchmarks unchanged.
+- **mHumanEval (Python)**: 54 African languages + English, 164 problems each, from the authors'
+  GitHub at b4ac5b3 (the HF copy has no Python). Prompt asks for the complete function in a
+  ```python block; same decoding as the card's non-math tasks (thinking off, greedy, 1024 tokens).
+  Code = last fenced block after the last </think>; run with the prompt's imports, the tests and
+  check(entry_point) in a separate isolated process (10 s, 4 GB). Metric pass@1.
+  Dataset notes: the reference solution of HumanEval/0 lacks an indent; 71 of 9,020 translated
+  prompts are not valid Python (stray quotes in the docstring) - this only matters for body-only replies.
+- **CulturalRiddles**: all 62 communities, with the authors' own runner and scorer at b838d48
+  (`slurm/riddles_setup.sh`, `slurm/riddles.sbatch`): their Qwen3.5-vLLM config against a vLLM
+  server with our pinned model; only concurrency changed (64 concurrent requests). Scored with
+  their new-run scorer: rules, released human labels, released two-judge verdicts; no new judge
+  calls, so answers without released evidence stay unscored. Accuracy = share of score 3 among
+  scored answers (authors' definition); coverage reported next to it.
+
 ## 2.2.0 — 2026-11-02 — baselines: several models, tokenizer check
 - `configs/models.yaml`: pinned registry of the evaluated models (AfriqueQwen3.5-4B-Instruct-v2
   and the baselines Qwen3.5-4B/9B, Sunflower-Qwen3.5-9B, Gemma-3-4B-it, tiny-aya-earth,

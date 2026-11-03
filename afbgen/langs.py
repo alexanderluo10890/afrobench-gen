@@ -63,7 +63,7 @@ DISPLAY = {"amh": "Amharic", "eng": "English", "ewe": "Ewe", "fra": "French", "h
 # ---------------------------------------------------------------------------
 # Extra benchmarks (not on the card; settings are ours, see README "Extra benchmarks").
 # Language lists = every language of the dataset at the pinned revision.
-EXTRA_TASKS = ["globalpiqa", "mmluprox"]
+EXTRA_TASKS = ["globalpiqa", "mmluprox", "mhumaneval"]
 GLOBALPIQA_LANGS = [
     "acm_arab", "acq_arab", "aeb_arab", "afb_arab", "als_latn", "amh_ethi", "apc_arab_jord",
     "apc_arab_leba", "apc_arab_pale", "apc_arab_syri", "arb_arab", "arq_arab", "ars_arab",
@@ -92,11 +92,24 @@ MMLUPROX_LANGS = [
 TASK_LANGS["globalpiqa"] = GLOBALPIQA_LANGS     # 136
 TASK_LANGS["mmluprox"] = MMLUPROX_LANGS         # 29
 
+# mHumanEval (Python): the African languages of the benchmark (FLORES-200 codes) + English.
+MHUMANEVAL_AFRICAN = [
+    "aeb_Arab", "afr_Latn", "amh_Ethi", "ary_Arab", "arz_Arab", "bam_Latn", "bem_Latn", "cjk_Latn",
+    "dik_Latn", "dyu_Latn", "ewe_Latn", "fon_Latn", "fuv_Latn", "gaz_Latn", "hau_Latn", "ibo_Latn",
+    "kab_Latn", "kam_Latn", "kbp_Latn", "kea_Latn", "kik_Latn", "kin_Latn", "kmb_Latn", "knc_Arab",
+    "knc_Latn", "kon_Latn", "lin_Latn", "lua_Latn", "lug_Latn", "luo_Latn", "mos_Latn", "nso_Latn",
+    "nus_Latn", "nya_Latn", "plt_Latn", "run_Latn", "sag_Latn", "sna_Latn", "som_Latn", "sot_Latn",
+    "ssw_Latn", "swh_Latn", "taq_Latn", "taq_Tfng", "tir_Ethi", "tsn_Latn", "tso_Latn", "tum_Latn",
+    "twi_Latn", "umb_Latn", "wol_Latn", "xho_Latn", "yor_Latn", "zul_Latn",
+]
+TASK_LANGS["mhumaneval"] = ["eng_Latn"] + MHUMANEVAL_AFRICAN   # 55
+
 # African-language subsets reported next to the all-language averages (our grouping;
 # includes the North-African Arabic varieties aeb/arq/ary/arz).
 AFRICAN_SUBSET = {
     "globalpiqa": ['aeb_arab', 'amh_ethi', 'arq_arab', 'ary_arab', 'arz_arab', 'bam_latn', 'dje_latn', 'ekp_latn', 'hau_latn', 'ibo_latn', 'idu_latn', 'iso_latn', 'kin_latn', 'lin_latn', 'luo_latn', 'pcm_latn', 'plt_latn', 'swh_latn', 'urh_latn', 'yor_latn', 'zul_latn'],
     "mmluprox": ['af', 'sw', 'wo', 'yo', 'zu'],
+    "mhumaneval": MHUMANEVAL_AFRICAN,
 }
 
 

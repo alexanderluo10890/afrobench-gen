@@ -43,6 +43,11 @@ def mc_spec(task):
 
 
 SPEC = {t: mc_spec(t) for t in ["afrimmlu", "afrixnli", "belebele", "injongo", "sib", "globalpiqa", "mmluprox"]}
+SPEC["mhumaneval"] = dict(
+    text="text_mhumaneval", process="process_mhumaneval",
+    filters=[{"name": "code", "filter": [{"function": "custom", "filter_fn": Fn("filter_code")},
+                                         {"function": "take_first"}]}],
+    metrics=[{"metric": "pass_at_1", "aggregation": "mean", "higher_is_better": True}])
 SPEC["flores"] = dict(
     text="text_translation", process="process_translation",
     filters=[{"name": "clean", "filter": [{"function": "custom", "filter_fn": Fn("filter_translation")},

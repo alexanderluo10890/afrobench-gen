@@ -156,3 +156,28 @@ def test_prompt_mmluprox_letter_list_follows_option_count():
 ])
 def test_extra_last_option(task, reply, want):
     assert lm_eval_regex(task, reply) == want
+
+
+# ---------------------------------------------------------------- mHumanEval (extra; our settings)
+
+MHE_DOC = {"prompt": "from typing import List\n\n\ndef add(xs: List[int]) -> int:\n    \"\"\"Ongeza namba.\"\"\"\n",
+           "test": "def check(candidate):\n    assert candidate([1, 2]) == 3\n", "entry_point": "add"}
+
+
+@pytest.mark.parametrize("reply,ok", [
+    ("```python\nfrom typing import List\ndef add(xs: List[int]) -> int:\n    return sum(xs)\n```", True),
+    ("Sure:\n```python\ndef add(xs):\n    return sum(xs)\n```\nThis sums the list.", True),     # prompt imports added
+    ("    return sum(xs)\n", True),                                                          # body only
+    ("```python\ndef add(xs):\n    return 0\n```", False),
+    ("<think>try ```python\ndef add(xs): return 0\n```</think>```python\ndef add(xs):\n    return sum(xs)\n```", True),
+    ("```python\ndef add(xs):\n    while True: pass\n```", False),                              # timeout
+    ("", False),
+])
+def test_mhumaneval_execution(reply, ok):
+    assert T._entry_point(MHE_DOC["prompt"]) == "add"
+    assert T.run_program(T.build_program(MHE_DOC, T.extract_code(reply)), timeout=3) is ok
+
+
+def test_mhumaneval_prompt():
+    p = T.text_mhumaneval(MHE_DOC)
+    assert p.startswith("Complete the following Python function.") and p.endswith('"""Ongeza namba."""\n```')

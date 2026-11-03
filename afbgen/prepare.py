@@ -59,6 +59,30 @@ def _snapshot(repo, revision, local_dir, repo_type="model", patterns=None):
 def prepare_data(pins):
     for task, pin in pins["datasets"].items():
         _snapshot(pin["repo"], pin["revision"], data_root() / "datasets" / task, "dataset", PATTERNS[task])
+    prepare_github(pins)
+
+
+def prepare_github(pins):
+    """mHumanEval Python files from GitHub at the pinned commit (one JSON file per language)."""
+    import urllib.parse
+    import urllib.request
+
+    g = pins["github"]["mhumaneval"]
+    d = data_root() / "datasets" / "mhumaneval"
+    d.mkdir(parents=True, exist_ok=True)
+    marker = d / ".afb_revision"
+    key = f"{g['commit']} {len(langs.TASK_LANGS['mhumaneval'])}"
+    if marker.exists() and marker.read_text().strip() == key:
+        print(f"[skip] {g['repo']}@{g['commit'][:10]} already in {d}")
+        return
+    print(f"[get ] {g['repo']}@{g['commit'][:10]} -> {d}")
+    for lang in langs.TASK_LANGS["mhumaneval"]:
+        path = urllib.parse.quote(g["path"].format(lang=lang))
+        url = f"https://raw.githubusercontent.com/{g['repo']}/{g['commit']}/{path}"
+        data = urllib.request.urlopen(url, timeout=60).read()
+        assert len(json.loads(data)) == 164, (lang, url)
+        (d / f"{lang}.json").write_bytes(data)
+    marker.write_text(key)
 
 
 def prepare_model(pins, names=(models.DEFAULT,)):

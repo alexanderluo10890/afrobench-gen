@@ -121,6 +121,10 @@ def load_rows(task: str, lang: str) -> list[dict]:
             rows.append({"question": r["question"], "options": opts, "target": r["answer"].strip(),
                          "category": r["category"], "lang": lang})
         return rows
+    if task == "mhumaneval":
+        rows = json.loads((d / f"{lang}.json").read_text(encoding="utf-8"))
+        return [{"task_id": r["task_id"], "prompt": r["prompt"], "test": r["test"],
+                 "entry_point": _entry_point(r["prompt"]), "target": "", "lang": lang} for r in rows]
     if task == "flores":
         src, tgt = lang.split("-")
         s, t = _flores_plus(d, src), _flores_plus(d, tgt)
@@ -152,6 +156,7 @@ load_injongo = make_loader("injongo")
 load_flores = make_loader("flores")
 load_globalpiqa = make_loader("globalpiqa")
 load_mmluprox = make_loader("mmluprox")
+load_mhumaneval = make_loader("mhumaneval")
 
 
 # --------------------------------------------------------------------------- prompts (Appendix B)
@@ -250,6 +255,77 @@ def text_math(instruction: str, question: str) -> str:
 
 def target(doc: dict) -> str:
     return doc["target"]
+
+
+# --------------------------------------------------------------------------- mHumanEval (extra; our settings)
+
+def _entry_point(prompt: str) -> str:
+    """The function to test: the last top-level `def` in the prompt (HumanEval convention)."""
+    names = re.findall(r"^def\s+([A-Za-z_]\w*)\s*\(", prompt, flags=re.M)
+    assert names, prompt[:200]
+    return names[-1]
+
+
+def text_mhumaneval(doc: dict) -> str:
+    return (
+        "Complete the following Python function. Reply with the complete function, including the "
+        "signature, in a single ```python code block.\n\n"
+        f"```python\n{doc['prompt'].rstrip()}\n```"
+    )
+
+
+_CODE_BLOCK = re.compile(r"```(?:python|py)?[ \t]*\n(.*?)```", re.S)
+
+
+def extract_code(reply: str) -> str:
+    """The code to run: after the last </think>; the last fenced block, else the whole reply."""
+    if "</think>" in reply:
+        reply = reply.rsplit("</think>", 1)[1]
+    blocks = _CODE_BLOCK.findall(reply)
+    if not blocks and "```" in reply:  # unterminated block (hit the token limit)
+        blocks = [reply.split("```", 1)[1].split("\n", 1)[-1]]
+    return (blocks[-1] if blocks else reply).strip("\n")
+
+
+def filter_code(resps, docs):
+    return [[extract_code(r) for r in rs] for rs in resps]
+
+
+def build_program(doc: dict, code: str) -> str:
+    """Prompt imports + the model's function (or the prompt + its body) + the tests + check()."""
+    ep = doc["entry_point"]
+    if re.search(rf"^def\s+{re.escape(ep)}\s*\(", code, flags=re.M):
+        imports = "\n".join(l for l in doc["prompt"].splitlines() if l.startswith(("import ", "from ")))
+        body = f"{imports}\n\n{code}"
+    else:  # the model wrote only the body
+        body = doc["prompt"] + code
+    return f"{body}\n\n{doc['test']}\n\ncheck({ep})\n"
+
+
+def run_program(program: str, timeout: float = 10.0) -> bool:
+    """Run untrusted code in a separate, isolated Python process; True if it exits cleanly."""
+    import subprocess
+    import sys
+    import tempfile
+
+    def limits():  # Linux only: memory and CPU caps
+        import resource
+
+        resource.setrlimit(resource.RLIMIT_AS, (4 << 30, 4 << 30))
+        resource.setrlimit(resource.RLIMIT_CPU, (int(timeout) + 1, int(timeout) + 1))
+
+    with tempfile.TemporaryDirectory() as tmp:
+        try:
+            r = subprocess.run([sys.executable, "-I", "-c", program], cwd=tmp, capture_output=True,
+                               timeout=timeout, preexec_fn=limits if os.name == "posix" else None,
+                               start_new_session=True, env={"PATH": "/usr/bin:/bin", "PYTHONHASHSEED": "0"})
+            return r.returncode == 0
+        except subprocess.TimeoutExpired:
+            return False
+
+
+def process_mhumaneval(doc: dict, results: list[str]) -> dict:
+    return {"pass_at_1": float(run_program(build_program(doc, results[0])))}
 
 
 # --------------------------------------------------------------------------- AfriMGSM extraction (4.2)

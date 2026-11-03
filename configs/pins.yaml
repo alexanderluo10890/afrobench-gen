@@ -69,3 +69,13 @@ datasets:
   mmluprox:
     repo: li-lab/MMLU-ProX-Lite
     revision: e82aafb9460529687d3c7e51b401d8dd1dd309dd
+
+# Benchmarks on GitHub (raw files at a pinned commit; not Hugging Face datasets)
+github:
+  mhumaneval:            # Python split; the HF copy has no Python
+    repo: mraihan-gmu/mHumanEval-Benchmark
+    commit: b4ac5b3f59bb8a9b27fabd2d63080963995b1388
+    path: "mHumanEval-{{NL}}/{lang}/mHumanEval-{lang}-python.json"
+  culturalriddles:       # run with the authors' own runner + scorer (slurm/riddles_setup.sh)
+    repo: Cohere-Labs-Community/CulturalRiddles
+    commit: b838d48abf58caf76eabe98ada1eabc21343d562

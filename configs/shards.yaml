@@ -10,3 +10,4 @@ flores:   {languages_per_job: 8}   # 48 directions -> 6 jobs
 # extra benchmarks (not on the card)
 globalpiqa: {languages_per_job: 46}  # 136 x 100 items -> 3 jobs
 mmluprox: {languages_per_job: 10}    # 29 x 588 -> 3 jobs
+mhumaneval: {languages_per_job: 14}  # 55 x 164 -> 4 jobs
