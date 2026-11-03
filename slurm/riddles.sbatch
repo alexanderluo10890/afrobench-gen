@@ -2,11 +2,11 @@
 # CulturalRiddles for one model: vLLM server on this node + the authors' runner + their scorer.
 #   sbatch $AFB_SBATCH_ARGS slurm/riddles.sbatch <run_dir> <model> [repo_dir]
 # Smoke test: AFB_LIMIT=20 sbatch ... (first 20 riddles; use a separate run_dir)
-# Not resumable inside the runner (its cache breaks batch mode); a requeued job starts over.
+# 48 runners (one per shard) share the vLLM server; a requeued job skips answered riddles.
 #SBATCH --gres=gpu:l40s:1
 #SBATCH --time=03:00:00
 #SBATCH --cpus-per-task=6
-#SBATCH --mem=48G
+#SBATCH --mem=64G
 #SBATCH --requeue
 #SBATCH --open-mode=append
 #SBATCH --signal=B:USR1@600
@@ -50,12 +50,26 @@ done
 curl -sf "http://127.0.0.1:$PORT/health" >/dev/null || { echo "vLLM server did not start"; finish; }
 echo "== $(date -Is) server up"
 
-"$AFB_VENV/bin/python" -m afbgen.riddles config --model "$MODEL" --port "$PORT" --cache "$OUT/cache" --out "$OUT/config.yaml"
-(cd "$RD" && "$RD/.venv/bin/riddles-framework" --config "$OUT/config.yaml" --output-root "$OUT/raw" ${AFB_LIMIT:+--limit $AFB_LIMIT}) &
-wait $! || finish
+# One unmodified runner per shard (each sends one request at a time, as in the authors' config);
+# the shards run concurrently against this server. Answered riddles are skipped on a restart.
+NSHARDS=${AFB_RIDDLE_SHARDS:-48}
+"$AFB_VENV/bin/python" -m afbgen.riddles shard --raw "$OUT/raw" --shards "$NSHARDS" --out "$OUT/shards" ${AFB_LIMIT:+--limit $AFB_LIMIT} || finish
+PIDS=()
+for S in "$OUT"/shards/shard*.jsonl; do
+  K=$(basename "$S" .jsonl)
+  "$AFB_VENV/bin/python" -m afbgen.riddles config --model "$MODEL" --port "$PORT" --cache "$OUT/cache" \
+    --dataset "$S" --out "$OUT/shards/$K.yaml" || finish
+  (cd "$RD" && "$RD/.venv/bin/riddles-framework" --config "$OUT/shards/$K.yaml" --output-root "$OUT/raw/$K" \
+    > "$OUT/shards/$K.log" 2>&1) &
+  PIDS+=($!)
+done
+FAILED=0
+for P in "${PIDS[@]}"; do wait "$P" || FAILED=$((FAILED + 1)); done
 kill "$SERVER" 2>/dev/null
+(( FAILED == 0 )) || { echo "$FAILED of ${#PIDS[@]} runners failed; first error:"; sed -n '/Error/p' "$OUT"/shards/*.log | head -3; finish; }
 
-RES=$(ls -t "$OUT"/raw/*/results.jsonl | head -1)
+RES="$OUT/results.jsonl"
+"$AFB_VENV/bin/python" -m afbgen.riddles merge --raw "$OUT/raw" --out "$RES" || finish
 SCORED="$RD/data/runs/afbgen/$(basename "$RUN_DIR")-$MODEL/scored.parquet"; mkdir -p "$(dirname "$SCORED")"
 (cd "$RD" && .venv/bin/python -m analysis.scoring --responses "$RES" --model "$MODEL" --out "$SCORED") || finish
 cp "$SCORED" "$OUT/scored.parquet"
