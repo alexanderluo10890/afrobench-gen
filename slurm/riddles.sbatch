@@ -1,6 +1,7 @@
 #!/bin/bash -l
 # CulturalRiddles for one model: vLLM server on this node + the authors' runner + their scorer.
 #   sbatch $AFB_SBATCH_ARGS slurm/riddles.sbatch <run_dir> <model> [repo_dir]
+# Smoke test: AFB_LIMIT=20 sbatch ... (first 20 riddles; use a separate run_dir)
 # Resumable: the runner caches every answer in <run_dir>/culturalriddles/cache.
 #SBATCH --gres=gpu:l40s:1
 #SBATCH --time=03:00:00
@@ -50,7 +51,7 @@ curl -sf "http://127.0.0.1:$PORT/health" >/dev/null || { echo "vLLM server did n
 echo "== $(date -Is) server up"
 
 "$AFB_VENV/bin/python" -m afbgen.riddles config --model "$MODEL" --port "$PORT" --cache "$OUT/cache" --out "$OUT/config.yaml"
-(cd "$RD" && "$RD/.venv/bin/riddles-framework" --config "$OUT/config.yaml" --output-root "$OUT/raw") &
+(cd "$RD" && "$RD/.venv/bin/riddles-framework" --config "$OUT/config.yaml" --output-root "$OUT/raw" ${AFB_LIMIT:+--limit $AFB_LIMIT}) &
 wait $! || finish
 kill "$SERVER" 2>/dev/null
 
