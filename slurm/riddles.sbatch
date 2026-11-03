@@ -2,7 +2,7 @@
 # CulturalRiddles for one model: vLLM server on this node + the authors' runner + their scorer.
 #   sbatch $AFB_SBATCH_ARGS slurm/riddles.sbatch <run_dir> <model> [repo_dir]
 # Smoke test: AFB_LIMIT=20 sbatch ... (first 20 riddles; use a separate run_dir)
-# Resumable: the runner caches every answer in <run_dir>/culturalriddles/cache.
+# Not resumable inside the runner (its cache breaks batch mode); a requeued job starts over.
 #SBATCH --gres=gpu:l40s:1
 #SBATCH --time=03:00:00
 #SBATCH --cpus-per-task=6

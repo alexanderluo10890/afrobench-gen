@@ -41,6 +41,9 @@ def write_config(model: str, port: int, cache: Path, out: Path):
     # Same prompt and request body per riddle; the authors' example sends them one by one.
     cfg["batch_mode"], cfg["batch_size"] = True, 64
     cfg["model_spec"]["capabilities"]["supports_batch"] = True
+    # The runner's cache client passes batch_size to AsyncOpenAI, which rejects it, so batch mode
+    # only works without the cache. The cache affects resuming only, not the answers.
+    cfg["cache_enabled"] = False
     out.write_text(yaml.safe_dump(cfg, sort_keys=False, allow_unicode=True), encoding="utf-8")
 
 
