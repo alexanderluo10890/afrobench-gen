@@ -14,6 +14,24 @@ afriqueqwen-v2:
   language_model_only: true
   card: {AfriMGSM: 50.8, AfriMMLU: 46.4, AfriXNLI: 63.6, Belebele: 66.2, Injongo: 58.7, SIB-200: 81.2, FLORES: 62.3, Overall: 61.3}
 
+afriqueqwen-4b-v1:                       # same family as the card model; all public, not gated
+  repo: McGill-NLP/AfriqueQwen3.5-4B-Instruct-v1
+  revision: f4f615ce418de573f49512da74276a6d4566e613
+  language_model_only: true
+  card: {AfriMGSM: 51.4, AfriMMLU: 46.3, AfriXNLI: 62.4, Belebele: 65.2, Injongo: 59.1, SIB-200: 80.4, FLORES: 57.8, Overall: 60.4}
+
+afriqueqwen-4b-50langs:
+  repo: McGill-NLP/AfriqueQwen3.5-4B-50Langs-Instruct-v1
+  revision: 0ff0ff64853f73e7065d6f743585309ad87755d3
+  language_model_only: true
+  card: {AfriMGSM: 54.2, AfriMMLU: 45.4, AfriXNLI: 62.2, Belebele: 66.9, Injongo: 58.1, SIB-200: 81.5, FLORES: 62.9, Overall: 61.6}
+
+afriqueqwen-9b-50langs:
+  repo: McGill-NLP/AfriqueQwen3.5-9B-50Langs-Instruct-v1
+  revision: 693f12e444a30971ca53889128d7bade9491ecb3
+  language_model_only: true
+  card: {AfriMGSM: 64.6, AfriMMLU: 51.2, AfriXNLI: 67.8, Belebele: 73.2, Injongo: 70.8, SIB-200: 86.4, FLORES: 63.8, Overall: 68.3}
+
 qwen3.5-4b:
   repo: Qwen/Qwen3.5-4B
   revision: 851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a
